@@ -1,0 +1,1 @@
+export function setupWatchForm(onCreate){document.querySelector('#createAlert').onclick=()=>onCreate({targetPrice:Number(document.querySelector('#targetPrice').value),dropRatePercent:Number(document.querySelector('#dropRate').value)});}

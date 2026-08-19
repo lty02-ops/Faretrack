@@ -1,0 +1,14 @@
+project_name = "faretrack"
+environment  = "dev"
+region       = "ap-northeast-2"
+
+price_check_schedule = "rate(3 hours)"
+monthly_budget_usd    = 10
+
+google_client_id     = "replace-with-google-client-id"
+google_client_secret = "replace-with-google-client-secret"
+kakao_client_id      = "replace-with-kakao-rest-api-key"
+kakao_client_secret  = "replace-with-kakao-client-secret"
+
+ses_from_email        = ""
+monitoring_alert_email = ""

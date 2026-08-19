@@ -1,0 +1,3 @@
+const { calculateDropRate } = require('../utils/priceUtils');
+class PriceComparisonService { compare(current,history,alert){const prior=history.filter(item=>item.id!==current.id),previous=prior.at(-1)?.price,previousMin=prior.length?Math.min(...prior.map(item=>item.price)):Infinity,dropRate=calculateDropRate(previous,current.price),reasons=[];if(alert.targetPrice&&current.price<=alert.targetPrice)reasons.push('TARGET_REACHED');if(current.price<previousMin)reasons.push('NEW_LOW');if(previous&&dropRate>=(alert.dropRatePercent||10))reasons.push('PRICE_DROP');return{shouldNotify:reasons.length>0,reasons,dropRate};} }
+module.exports = { PriceComparisonService };

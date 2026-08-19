@@ -1,0 +1,37 @@
+node_modules/
+.server.pid
+.env
+.env.*
+!.env.example
+.chrome-render*/
+coverage/
+dist/
+*.log
+dynamodb-data/
+android/.gradle/
+android/local.properties
+android/**/build/
+.android-gradle-cache/
+
+# Terraform local state and generated plans
+**/.terraform/*
+*.tfstate
+*.tfstate.*
+*.tfplan
+terraform.tfvars
+*.auto.tfvars
+*.auto.tfvars.json
+override.tf
+override.tf.json
+*_override.tf
+*_override.tf.json
+crash.log
+crash.*.log
+
+# Android machine-local and signing credentials
+**/google-services.json
+*.jks
+*.keystore
+android/key.properties
+android/.idea/
+*.iml

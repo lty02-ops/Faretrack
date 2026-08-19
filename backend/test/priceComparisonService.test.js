@@ -1,0 +1,2 @@
+const test=require('node:test');const assert=require('node:assert/strict');const{PriceComparisonService}=require('../src/services/priceComparisonService');
+test('목표가, 신저가, 직전 가격 대비 하락을 각각 판정한다',()=>{const service=new PriceComparisonService(),current={id:'p2',price:140000},history=[{id:'p1',price:180000},current],result=service.compare(current,history,{targetPrice:150000,dropRatePercent:10});assert.deepEqual(result.reasons,['TARGET_REACHED','NEW_LOW','PRICE_DROP']);assert.equal(result.shouldNotify,true);});

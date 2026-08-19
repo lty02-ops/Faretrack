@@ -1,0 +1,81 @@
+services:
+  dynamodb-local:
+    image: amazon/dynamodb-local:latest
+    container_name: faretrack-dynamodb
+    user: "0:0"
+    command: "-jar DynamoDBLocal.jar -sharedDb -dbPath ./data"
+    working_dir: /home/dynamodblocal
+    volumes:
+      - dynamodb-data:/home/dynamodblocal/data
+    ports:
+      - "8000:8000"
+    restart: unless-stopped
+
+  dynamodb-init:
+    build:
+      context: .
+      dockerfile: backend/Dockerfile
+    command: ["node", "backend/scripts/initDynamoDb.js"]
+    depends_on:
+      - dynamodb-local
+    environment:
+      AWS_REGION: ap-northeast-2
+      AWS_ACCESS_KEY_ID: local
+      AWS_SECRET_ACCESS_KEY: local
+      DYNAMODB_ENDPOINT: http://dynamodb-local:8000
+      DYNAMODB_TABLE_NAME: Faretrack
+    restart: "no"
+
+  backend:
+    build:
+      context: .
+      dockerfile: backend/Dockerfile
+    container_name: faretrack-backend
+    environment:
+      NODE_ENV: production
+      PORT: 3000
+      TEST_MODE: ${TEST_MODE:-true}
+      PRICE_TRACKING_ENABLED: ${PRICE_TRACKING_ENABLED:-true}
+      PRICE_CHECK_INTERVAL_MINUTES: ${PRICE_CHECK_INTERVAL_MINUTES:-60}
+      SERPAPI_API_KEY: ${SERPAPI_API_KEY:-}
+      SERPAPI_MONTHLY_REQUEST_LIMIT: ${SERPAPI_MONTHLY_REQUEST_LIMIT:-200}
+      CACHE_TTL_MINUTES: ${CACHE_TTL_MINUTES:-60}
+      REPOSITORY_TYPE: dynamodb
+      AWS_REGION: ${AWS_REGION:-ap-northeast-2}
+      AWS_ACCESS_KEY_ID: ${AWS_ACCESS_KEY_ID:-local}
+      AWS_SECRET_ACCESS_KEY: ${AWS_SECRET_ACCESS_KEY:-local}
+      DYNAMODB_ENDPOINT: http://dynamodb-local:8000
+      DYNAMODB_TABLE_NAME: ${DYNAMODB_TABLE_NAME:-Faretrack}
+    depends_on:
+      dynamodb-init:
+        condition: service_completed_successfully
+    ports:
+      - "3000:3000"
+    restart: unless-stopped
+    healthcheck:
+      test:
+        [
+          "CMD",
+          "node",
+          "-e",
+          "fetch('http://localhost:3000/api/health').then(r=>{if(!r.ok)process.exit(1)}).catch(()=>process.exit(1))"
+        ]
+      interval: 30s
+      timeout: 5s
+      retries: 3
+      start_period: 10s
+
+  frontend:
+    build:
+      context: .
+      dockerfile: frontend/Dockerfile
+    container_name: faretrack-frontend
+    depends_on:
+      backend:
+        condition: service_healthy
+    ports:
+      - "${FRONTEND_PORT:-8081}:80"
+    restart: unless-stopped
+
+volumes:
+  dynamodb-data:

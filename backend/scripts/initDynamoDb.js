@@ -1,0 +1,9 @@
+const { DynamoDBClient, CreateTableCommand, DescribeTableCommand } = require('@aws-sdk/client-dynamodb');
+
+const endpoint=process.env.DYNAMODB_ENDPOINT||'http://localhost:8000',region=process.env.AWS_REGION||'ap-northeast-2',tableName=process.env.DYNAMODB_TABLE_NAME||'Faretrack';
+const client=new DynamoDBClient({region,endpoint,credentials:{accessKeyId:process.env.AWS_ACCESS_KEY_ID||'local',secretAccessKey:process.env.AWS_SECRET_ACCESS_KEY||'local'}});
+const wait=ms=>new Promise(resolve=>setTimeout(resolve,ms));
+
+async function waitForService(){for(let attempt=1;attempt<=30;attempt++){try{await client.send(new DescribeTableCommand({TableName:tableName}));return 'exists';}catch(error){if(error.name==='ResourceNotFoundException')return 'missing';if(attempt===30)throw error;await wait(1000);}}}
+async function main(){const state=await waitForService();if(state==='missing'){try{await client.send(new CreateTableCommand({TableName:tableName,BillingMode:'PAY_PER_REQUEST',AttributeDefinitions:[{AttributeName:'PK',AttributeType:'S'},{AttributeName:'SK',AttributeType:'S'},{AttributeName:'GSI1PK',AttributeType:'S'},{AttributeName:'GSI1SK',AttributeType:'S'}],KeySchema:[{AttributeName:'PK',KeyType:'HASH'},{AttributeName:'SK',KeyType:'RANGE'}],GlobalSecondaryIndexes:[{IndexName:'GSI1',KeySchema:[{AttributeName:'GSI1PK',KeyType:'HASH'},{AttributeName:'GSI1SK',KeyType:'RANGE'}],Projection:{ProjectionType:'ALL'}}]}));}catch(error){if(error.name!=='ResourceInUseException')throw error;}}for(let attempt=1;attempt<=30;attempt++){const result=await client.send(new DescribeTableCommand({TableName:tableName}));if(result.Table?.TableStatus==='ACTIVE'){console.log(`DynamoDB table ready: ${tableName}`);return;}await wait(1000);}throw new Error(`DynamoDB table did not become active: ${tableName}`);}
+main().catch(error=>{console.error(error);process.exit(1);});

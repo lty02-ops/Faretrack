@@ -1,0 +1,10 @@
+node_modules/
+.git/
+.gradle/
+.android-gradle-cache/
+android/
+docs/
+image/
+infra/
+*.log
+.env*
