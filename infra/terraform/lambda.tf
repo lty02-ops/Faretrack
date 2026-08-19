@@ -69,7 +69,7 @@ resource "aws_lambda_function" "price_worker" {
     variables = merge(local.lambda_common_environment, {
       CACHE_TTL_MINUTES             = "60"
       NOTIFICATION_QUEUE_URL        = aws_sqs_queue.notification.url
-      PRICE_TRACKING_ENABLED        = "true"
+      PRICE_TRACKING_ENABLED        = tostring(var.price_tracking_enabled)
       SERPAPI_MONTHLY_REQUEST_LIMIT = "200"
       SERPAPI_SECRET_ARN            = aws_secretsmanager_secret.serpapi.arn
     })

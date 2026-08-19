@@ -3,7 +3,6 @@ data "aws_caller_identity" "current" {}
 resource "aws_cognito_user_pool" "faretrack" {
   name = "${local.name_prefix}-users"
 
-  username_attributes      = ["email"]
   auto_verified_attributes = ["email"]
 
   username_configuration {
@@ -60,14 +59,13 @@ resource "aws_cognito_identity_provider" "kakao" {
 
   provider_details = {
     attributes_request_method = "GET"
-    authorize_scopes          = "openid profile_nickname account_email"
+    authorize_scopes          = "openid profile_nickname"
     client_id                 = var.kakao_client_id
     client_secret             = var.kakao_client_secret
     oidc_issuer               = "https://kauth.kakao.com"
   }
 
   attribute_mapping = {
-    email    = "email"
     name     = "nickname"
     username = "sub"
   }

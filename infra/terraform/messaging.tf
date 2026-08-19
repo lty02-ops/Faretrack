@@ -50,6 +50,7 @@ resource "aws_cloudwatch_event_rule" "price_check_schedule" {
   name                = "${local.name_prefix}-price-check-schedule"
   description         = "Runs the Faretrack scheduler periodically"
   schedule_expression = var.price_check_schedule
+  state               = var.price_tracking_enabled ? "ENABLED" : "DISABLED"
 
   tags = local.common_tags
 }
