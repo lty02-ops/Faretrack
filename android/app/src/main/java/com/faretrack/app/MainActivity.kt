@@ -1,6 +1,7 @@
 package com.faretrack.app
 
 import android.app.Activity
+import android.app.AlertDialog
 import android.app.DatePickerDialog
 import android.content.Intent
 import android.graphics.Color
@@ -68,6 +69,16 @@ class MainActivity : Activity() {
             startActivityForResult(auth.authorizationIntent(), AuthManager.LOGIN_REQUEST_CODE)
         }
         root.addView(login, LinearLayout.LayoutParams(-1, dp(58)))
+
+        if (BuildConfig.DEBUG) {
+            root.addView(space(12))
+            val developmentLogin = action("Continue in development mode", teal, Color.TRANSPARENT)
+            developmentLogin.setOnClickListener {
+                auth.loginForDevelopment()
+                showSearch()
+            }
+            root.addView(developmentLogin, LinearLayout.LayoutParams(-1, dp(52)))
+        }
         setContentView(root)
     }
 
@@ -124,9 +135,27 @@ class MainActivity : Activity() {
 
         val submit = action("현재 가격 검색", Color.WHITE, teal)
         submit.setOnClickListener {
+            val originCode = origin.text.toString().trim().uppercase()
+            val destinationCode = destination.text.toString().trim().uppercase()
+            if (!isAirportCode(originCode) || !isAirportCode(destinationCode)) {
+                toast("공항 코드는 ICN처럼 영문 3자로 입력하세요.")
+                return@setOnClickListener
+            }
+            if (originCode == destinationCode) {
+                toast("출발지와 도착지는 달라야 합니다.")
+                return@setOnClickListener
+            }
+            if (LocalDate.parse(departure.text.toString()).isBefore(LocalDate.now())) {
+                toast("출발일은 오늘 이후로 선택하세요.")
+                return@setOnClickListener
+            }
+            if (trip.selectedItemPosition == 0 && LocalDate.parse(returnDate.text.toString()).isBefore(LocalDate.parse(departure.text.toString()))) {
+                toast("귀국일은 출발일 이후로 선택하세요.")
+                return@setOnClickListener
+            }
             lastQuery = JSONObject()
-                .put("origin", origin.text.toString().trim().uppercase())
-                .put("destination", destination.text.toString().trim().uppercase())
+                .put("origin", originCode)
+                .put("destination", destinationCode)
                 .put("departureDate", departure.text.toString())
                 .put("returnDate", returnDate.text.toString())
                 .put("tripType", if (trip.selectedItemPosition == 0) "ROUND" else "ONE_WAY")
@@ -152,17 +181,37 @@ class MainActivity : Activity() {
             setPadding(dp(18), dp(18), dp(18), dp(18))
             setBackgroundColor(Color.WHITE)
         }
-        card.addView(label("${flight.getString("airline")}  ${flight.getString("flightNumber")}", 18, ink, true))
+        val airlineHeader = row().apply { gravity = Gravity.CENTER_VERTICAL }
+        airlineLogoResource(flight.getString("flightNumber"))?.let { logoResource ->
+            airlineHeader.addView(ImageView(this).apply {
+                setImageResource(logoResource)
+                scaleType = ImageView.ScaleType.FIT_CENTER
+                contentDescription = "${localizedAirline(flight.getString("airline"))} 로고"
+            }, LinearLayout.LayoutParams(dp(34), dp(34)).apply { setMargins(0, 0, dp(10), 0) })
+        }
+        airlineHeader.addView(
+            label("${localizedAirline(flight.getString("airline"))}  ${flight.getString("flightNumber")}", 18, ink, true),
+            LinearLayout.LayoutParams(0, -2, 1f)
+        )
+        card.addView(airlineHeader)
         val stops = if (flight.getInt("stops") == 0) "직항" else "경유 ${flight.getInt("stops")}회"
         card.addView(label("${flight.getString("departureTime")}  →  ${flight.getString("arrivalTime")}   ·   $stops", 14, muted))
         card.addView(space(14))
         card.addView(label(won(flight.getInt("price")), 24, ink, true))
-        card.addView(label("판매처: ${flight.getString("seller")}", 12, muted))
+        card.addView(
+            sellerLogo(flight.getString("seller")),
+            LinearLayout.LayoutParams(-2, dp(30)).apply {
+                gravity = Gravity.END
+                setMargins(0, dp(4), 0, dp(4))
+            }
+        )
         val buttons = row()
-        buttons.addView(action("가격 추적", Color.WHITE, teal).apply { setOnClickListener { showTracking(flight) } }, LinearLayout.LayoutParams(0, dp(50), 1f))
-        buttons.addView(action("판매처 이동", teal, Color.TRANSPARENT).apply {
+        buttons.addView(action("가격 추적", Color.WHITE, teal).apply {
+            setOnClickListener { showTracking(flight) }
+        }, LinearLayout.LayoutParams(0, dp(56), 1f))
+        buttons.addView(action("판매처 이동", Color.WHITE, ink).apply {
             setOnClickListener { startActivity(Intent(Intent.ACTION_VIEW, Uri.parse(flight.optString("bookingUrl", "https://www.google.com/travel/flights")))) }
-        }, LinearLayout.LayoutParams(0, dp(50), 1f))
+        }, LinearLayout.LayoutParams(0, dp(56), 1f))
         card.addView(buttons)
         card.layoutParams = LinearLayout.LayoutParams(-1, -2).apply { setMargins(0, 0, 0, dp(12)) }
         return card
@@ -204,19 +253,28 @@ class MainActivity : Activity() {
             val query = item.getJSONObject("target").getJSONObject("query")
             val history = item.getJSONArray("history")
             val current = if (history.length() > 0) won(history.getJSONObject(history.length() - 1).getInt("price")) else "확인 전"
+            val id = item.getString("id")
             val card = column().apply { setPadding(dp(16), dp(16), dp(16), dp(16)); setBackgroundColor(Color.WHITE) }
-            card.addView(label("${query.getString("origin")} → ${query.getString("destination")}", 20, ink, true))
+            val titleRow = row().apply { gravity = Gravity.CENTER_VERTICAL }
+            titleRow.addView(
+                label("${query.getString("origin")} → ${query.getString("destination")}", 20, ink, true),
+                LinearLayout.LayoutParams(0, dp(44), 1f)
+            )
+            titleRow.addView(action("×", Color.rgb(190, 55, 45), Color.TRANSPARENT).apply {
+                contentDescription = "가격 추적 삭제"
+                textSize = 28f
+                minWidth = 0
+                minHeight = 0
+                setPadding(0, 0, 0, 0)
+                setOnClickListener { confirmDelete(id) }
+            }, LinearLayout.LayoutParams(dp(48), dp(48)))
+            card.addView(titleRow)
             card.addView(label("${query.getString("departureDate")} · 목표 ${won(item.getInt("targetPrice"))}", 13, muted))
             card.addView(label("최근 조회 가격  $current", 16, teal, true))
-            val id = item.getString("id")
-            val active = item.getBoolean("active")
-            val buttons = row()
-            val toggle = action(if (active) "일시정지" else "활성화", ink, Color.TRANSPARENT)
-            toggle.setOnClickListener { runTask(toggle, "처리 중...", { api.updateAlert(id, JSONObject().put("active", !active)) }) { showWatches() } }
-            val remove = action("삭제", Color.rgb(190, 55, 45), Color.TRANSPARENT)
-            remove.setOnClickListener { runTask(remove, "삭제 중...", { api.deleteAlert(id); Unit }) { showWatches() } }
-            buttons.addView(toggle, LinearLayout.LayoutParams(0, dp(48), 1f)); buttons.addView(remove, LinearLayout.LayoutParams(0, dp(48), 1f))
-            card.addView(buttons)
+            card.addView(
+                PriceHistoryChart(this, history, item.getInt("targetPrice")),
+                LinearLayout.LayoutParams(-1, dp(190)).apply { setMargins(0, dp(8), 0, dp(8)) }
+            )
             content.addView(card, LinearLayout.LayoutParams(-1, -2).apply { setMargins(0, 0, 0, dp(12)) })
         }
     }
@@ -230,6 +288,20 @@ class MainActivity : Activity() {
         val save = action("저장하고 연결 확인", Color.WHITE, teal)
         save.setOnClickListener { api.baseUrl = url.text.toString(); runTask(save, "확인 중...", api::getAlerts) { toast("API 연결에 성공했습니다."); showSearch() } }
         content.addView(save, LinearLayout.LayoutParams(-1, dp(58)))
+    }
+
+    private fun confirmDelete(id: String) {
+        AlertDialog.Builder(this)
+            .setTitle("가격 추적 삭제")
+            .setMessage("이 가격 추적과 저장된 가격 이력을 지우시겠습니까?")
+            .setNegativeButton("취소", null)
+            .setPositiveButton("삭제") { _, _ ->
+                runTask(null, "", { api.deleteAlert(id); Unit }) {
+                    toast("가격 추적을 삭제했습니다.")
+                    showWatches()
+                }
+            }
+            .show()
     }
 
     private fun <T> runTask(button: Button?, busy: String, task: () -> T, success: (T) -> Unit) {
@@ -248,9 +320,53 @@ class MainActivity : Activity() {
     private fun spinner(values: List<String>) = Spinner(this).apply { adapter = ArrayAdapter(this@MainActivity, android.R.layout.simple_spinner_dropdown_item, values) }
     private fun field(title: String, input: View) = column().apply { setPadding(dp(14), dp(10), dp(14), dp(10)); setBackgroundColor(Color.WHITE); addView(label(title, 12, muted, true)); addView(input, LinearLayout.LayoutParams(-1, dp(52))); layoutParams = LinearLayout.LayoutParams(-1, -2).apply { setMargins(0, 0, 0, dp(10)) } }
     private fun action(value: String, color: Int, background: Int) = Button(this).apply { text = value; setTextColor(color); setBackgroundColor(background); isAllCaps = false }
+    private fun sellerLogo(seller: String) = TextView(this).apply {
+        val (wordmark, foreground, background) = when (seller.lowercase()) {
+            "trip.com" -> Triple("Trip.com", Color.WHITE, Color.rgb(40, 112, 220))
+            "kiwi.com" -> Triple("kiwi.com", Color.rgb(0, 82, 73), Color.rgb(220, 245, 239))
+            else -> Triple("Google Flights", Color.rgb(26, 115, 232), Color.rgb(239, 243, 250))
+        }
+        text = wordmark
+        textSize = 13f
+        gravity = Gravity.CENTER
+        setTypeface(null, 1)
+        setTextColor(foreground)
+        setBackgroundColor(background)
+        setPadding(dp(12), 0, dp(12), 0)
+    }
     private fun space(height: Int) = Space(this).apply { layoutParams = LinearLayout.LayoutParams(1, dp(height)) }
     private fun dp(value: Int) = (value * resources.displayMetrics.density).toInt()
     private fun toast(message: String) = Toast.makeText(this, message, Toast.LENGTH_LONG).show()
     private fun won(value: Int) = NumberFormat.getNumberInstance(Locale.KOREA).format(value) + "원"
+    private fun isAirportCode(value: String) = value.length == 3 && value.all { it in 'A'..'Z' }
+    private fun localizedAirline(value: String): String {
+        val normalized = value.trim().lowercase()
+        return when (normalized) {
+            "korean air", "korean airlines" -> "대한항공"
+            "asiana airlines", "asiana" -> "아시아나항공"
+            "jeju air" -> "제주항공"
+            "jin air" -> "진에어"
+            "t'way air", "tway air", "t-way air" -> "티웨이항공"
+            "air busan" -> "에어부산"
+            "air seoul" -> "에어서울"
+            "eastar jet" -> "이스타항공"
+            "aero k", "aero k airlines" -> "에어로케이"
+            "japan airlines", "jal" -> "일본항공"
+            "all nippon airways", "ana" -> "전일본공수"
+            "peach aviation", "peach" -> "피치항공"
+            "zipair", "zipair tokyo" -> "집에어"
+            else -> value
+        }
+    }
+    private fun airlineLogoResource(flightNumber: String): Int? {
+        val normalized = flightNumber.trim().uppercase()
+        return when {
+            normalized.startsWith("KE") -> R.drawable.airline_ke
+            normalized.startsWith("OZ") -> R.drawable.airline_oz
+            normalized.startsWith("7C") -> R.drawable.airline_7c
+            normalized.startsWith("LJ") -> R.drawable.airline_lj
+            else -> null
+        }
+    }
     private fun pickDate(field: EditText) { val initial = LocalDate.parse(field.text); DatePickerDialog(this, { _, y, m, d -> field.setText(LocalDate.of(y, m + 1, d).toString()) }, initial.year, initial.monthValue - 1, initial.dayOfMonth).show() }
 }

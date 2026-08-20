@@ -8,17 +8,33 @@ import java.net.URL
 
 class ApiClient(context: Context, private val auth: AuthManager) {
     private val preferences = context.applicationContext.getSharedPreferences("faretrack_settings", Context.MODE_PRIVATE)
+    private val developmentApi = DevelopmentApi(context.applicationContext)
 
     var baseUrl: String
         get() = preferences.getString("api_url", BuildConfig.DEFAULT_API_BASE_URL) ?: BuildConfig.DEFAULT_API_BASE_URL
         set(value) { preferences.edit().putString("api_url", value.trim().trimEnd('/')).apply() }
 
-    fun search(query: JSONObject) = requestObject("POST", "/api/flights/search", query)
-    fun createAlert(payload: JSONObject) = requestObject("POST", "/api/alerts", payload)
-    fun getAlerts() = JSONArray(execute("GET", "/api/alerts"))
-    fun updateAlert(id: String, payload: JSONObject) = requestObject("PATCH", "/api/alerts/$id", payload)
-    fun deleteAlert(id: String) { execute("DELETE", "/api/alerts/$id") }
-    fun runPriceCheck() = requestObject("POST", "/internal/price-check", JSONObject())
+    fun search(query: JSONObject) = if (useDevelopmentApi) developmentApi.search(query)
+        else requestObject("POST", "/api/flights/search", query)
+
+    fun createAlert(payload: JSONObject) = if (useDevelopmentApi) developmentApi.createAlert(payload)
+        else requestObject("POST", "/api/alerts", payload)
+
+    fun getAlerts() = if (useDevelopmentApi) developmentApi.getAlerts()
+        else JSONArray(execute("GET", "/api/alerts"))
+
+    fun updateAlert(id: String, payload: JSONObject) = if (useDevelopmentApi) developmentApi.updateAlert(id, payload)
+        else requestObject("PATCH", "/api/alerts/$id", payload)
+
+    fun deleteAlert(id: String) {
+        if (useDevelopmentApi) developmentApi.deleteAlert(id) else execute("DELETE", "/api/alerts/$id")
+    }
+
+    fun runPriceCheck() = if (useDevelopmentApi) developmentApi.runPriceCheck()
+        else requestObject("POST", "/internal/price-check", JSONObject())
+
+    private val useDevelopmentApi: Boolean
+        get() = BuildConfig.DEBUG && auth.isDevelopmentAuthorized
 
     private fun requestObject(method: String, path: String, payload: JSONObject? = null) =
         JSONObject(execute(method, path, payload))

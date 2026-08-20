@@ -28,7 +28,15 @@ class AuthManager(context: Context) {
         ?: AuthState(configuration)
 
     val isAuthorized: Boolean
-        get() = state.isAuthorized
+        get() = state.isAuthorized || isDevelopmentAuthorized
+
+    val isDevelopmentAuthorized: Boolean
+        get() = BuildConfig.DEBUG && preferences.getBoolean(DEVELOPMENT_AUTH_KEY, false)
+
+    fun loginForDevelopment() {
+        check(BuildConfig.DEBUG) { "Development login is only available in debug builds." }
+        preferences.edit().putBoolean(DEVELOPMENT_AUTH_KEY, true).apply()
+    }
 
     fun authorizationIntent(): Intent {
         val request = AuthorizationRequest.Builder(
@@ -67,6 +75,8 @@ class AuthManager(context: Context) {
     }
 
     fun freshAccessToken(): String {
+        if (isDevelopmentAuthorized) return "development-token"
+
         val token = AtomicReference<String?>()
         val failure = AtomicReference<AuthorizationException?>()
         val latch = CountDownLatch(1)
@@ -85,7 +95,10 @@ class AuthManager(context: Context) {
 
     fun logout() {
         state = AuthState(configuration)
-        preferences.edit().remove(AUTH_STATE_KEY).apply()
+        preferences.edit()
+            .remove(AUTH_STATE_KEY)
+            .remove(DEVELOPMENT_AUTH_KEY)
+            .apply()
     }
 
     fun close() = service.dispose()
@@ -97,5 +110,6 @@ class AuthManager(context: Context) {
     companion object {
         const val LOGIN_REQUEST_CODE = 4102
         private const val AUTH_STATE_KEY = "auth_state"
+        private const val DEVELOPMENT_AUTH_KEY = "development_auth"
     }
 }
