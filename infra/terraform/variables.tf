@@ -101,3 +101,47 @@ variable "monthly_budget_usd" {
     error_message = "Monthly budget must be greater than zero."
   }
 }
+
+variable "api_throttling_rate_limit" {
+  description = "Steady-state requests per second allowed by the HTTP API"
+  type        = number
+  default     = 5
+
+  validation {
+    condition     = var.api_throttling_rate_limit > 0
+    error_message = "API throttling rate limit must be greater than zero."
+  }
+}
+
+variable "api_throttling_burst_limit" {
+  description = "Maximum burst of requests allowed by the HTTP API"
+  type        = number
+  default     = 10
+
+  validation {
+    condition     = var.api_throttling_burst_limit > 0
+    error_message = "API throttling burst limit must be greater than zero."
+  }
+}
+
+variable "price_worker_reserved_concurrency" {
+  description = "Reserved concurrency and maximum SQS concurrency for the price worker"
+  type        = number
+  default     = 2
+
+  validation {
+    condition     = var.price_worker_reserved_concurrency >= 2
+    error_message = "Price worker concurrency must be at least 2 for SQS scaling."
+  }
+}
+
+variable "notification_reserved_concurrency" {
+  description = "Reserved concurrency and maximum SQS concurrency for the notification worker"
+  type        = number
+  default     = 5
+
+  validation {
+    condition     = var.notification_reserved_concurrency >= 2
+    error_message = "Notification concurrency must be at least 2 for SQS scaling."
+  }
+}

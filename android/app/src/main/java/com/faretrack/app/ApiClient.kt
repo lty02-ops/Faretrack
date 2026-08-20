@@ -6,7 +6,7 @@ import org.json.JSONObject
 import java.net.HttpURLConnection
 import java.net.URL
 
-class ApiClient(context: Context) {
+class ApiClient(context: Context, private val auth: AuthManager) {
     private val preferences = context.applicationContext.getSharedPreferences("faretrack_settings", Context.MODE_PRIVATE)
 
     var baseUrl: String
@@ -30,6 +30,7 @@ class ApiClient(context: Context) {
             connection.connectTimeout = 10_000
             connection.readTimeout = 15_000
             connection.setRequestProperty("Accept", "application/json")
+            connection.setRequestProperty("Authorization", "Bearer ${auth.freshAccessToken()}")
             payload?.let {
                 connection.doOutput = true
                 connection.setRequestProperty("Content-Type", "application/json; charset=utf-8")

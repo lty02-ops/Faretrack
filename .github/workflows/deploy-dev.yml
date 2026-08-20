@@ -1,0 +1,59 @@
+name: Deploy dev
+
+on:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+  id-token: write
+
+concurrency:
+  group: faretrack-dev-deploy
+  cancel-in-progress: false
+
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+    environment: dev
+
+    env:
+      TF_IN_AUTOMATION: true
+      TF_VAR_google_client_id: ${{ secrets.GOOGLE_CLIENT_ID }}
+      TF_VAR_google_client_secret: ${{ secrets.GOOGLE_CLIENT_SECRET }}
+      TF_VAR_kakao_client_id: ${{ secrets.KAKAO_CLIENT_ID }}
+      TF_VAR_kakao_client_secret: ${{ secrets.KAKAO_CLIENT_SECRET }}
+      TF_VAR_ses_from_email: ${{ secrets.SES_FROM_EMAIL }}
+      TF_VAR_monitoring_alert_email: ${{ secrets.MONITORING_ALERT_EMAIL }}
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+
+      - run: npm ci
+      - run: npm test
+      - run: bash backend/scripts/buildLambda.sh
+
+      - uses: aws-actions/configure-aws-credentials@v4
+        with:
+          role-to-assume: ${{ vars.AWS_DEPLOY_ROLE_ARN }}
+          aws-region: ap-northeast-2
+
+      - uses: hashicorp/setup-terraform@v3
+        with:
+          terraform_version: 1.15.8
+
+      - name: Terraform init
+        working-directory: infra/terraform
+        run: terraform init -reconfigure -backend-config=environments/dev.backend.hcl
+
+      - name: Terraform plan
+        working-directory: infra/terraform
+        run: terraform plan -input=false -var-file=environments/dev.tfvars -out=dev.tfplan
+
+      - name: Terraform apply
+        working-directory: infra/terraform
+        run: terraform apply -input=false -auto-approve dev.tfplan

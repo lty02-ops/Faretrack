@@ -72,6 +72,11 @@ resource "aws_iam_role_policy" "api_lambda" {
           aws_dynamodb_table.faretrack.arn,
           "${aws_dynamodb_table.faretrack.arn}/index/*"
         ]
+      },
+      {
+        Effect   = "Allow"
+        Action   = ["secretsmanager:GetSecretValue"]
+        Resource = aws_secretsmanager_secret.serpapi.arn
       }
     ]
   })
@@ -183,7 +188,7 @@ resource "aws_iam_role_policy" "notification_lambda" {
           "ses:SendEmail",
           "ses:SendRawEmail"
         ]
-        Resource = "*"
+        Resource = var.ses_from_email == "" ? ["*"] : [aws_sesv2_email_identity.sender[0].arn]
       }
     ]
   })

@@ -13,10 +13,18 @@ android {
         targetSdk 36
         versionCode 1
         versionName '1.0.0'
-        buildConfigField 'String', 'DEFAULT_API_BASE_URL', '"http://10.0.2.2:3000"'
+        buildConfigField 'String', 'DEFAULT_API_BASE_URL', '"https://pjlbhuggc3.execute-api.ap-northeast-2.amazonaws.com"'
+        buildConfigField 'String', 'COGNITO_CLIENT_ID', '"77qfbim87jlute7qh2obpr1jb1"'
+        buildConfigField 'String', 'COGNITO_DOMAIN', '"https://faretrack-dev-022868553365.auth.ap-northeast-2.amazoncognito.com"'
+        buildConfigField 'String', 'COGNITO_REDIRECT_URI', '"faretrack://auth/callback"'
+        manifestPlaceholders = [appAuthRedirectScheme: 'faretrack']
     }
 
     buildFeatures { buildConfig true }
     compileOptions { sourceCompatibility JavaVersion.VERSION_17; targetCompatibility JavaVersion.VERSION_17 }
     kotlinOptions { jvmTarget = '17' }
+}
+
+dependencies {
+    implementation 'net.openid:appauth:0.11.1'
 }

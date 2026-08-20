@@ -1,4 +1,6 @@
 const { createContainer } = require('../app');
+const { SecretsManagerClient, GetSecretValueCommand } = require('@aws-sdk/client-secrets-manager');
+const { SerpApiGoogleFlightsProvider } = require('../providers/serpApiGoogleFlightsProvider');
 const { FlightController } = require('../controllers/flightController');
 const { WatchController } = require('../controllers/watchController');
 const { HealthController } = require('../controllers/healthController');
@@ -7,10 +9,21 @@ const { watchRoutes } = require('../routes/watchRoutes');
 const { healthRoutes } = require('../routes/healthRoutes');
 
 let routes;
+const secrets = new SecretsManagerClient({});
+let apiKey;
+
+async function getApiKey() {
+  if (apiKey) return apiKey;
+  const secret = await secrets.send(new GetSecretValueCommand({ SecretId: process.env.SERPAPI_SECRET_ARN }));
+  const value = JSON.parse(secret.SecretString || '{}');
+  apiKey = value.apiKey || '';
+  return apiKey;
+}
 
 function getRoutes() {
   if (routes) return routes;
-  const container = createContainer();
+  const provider = new SerpApiGoogleFlightsProvider({ apiKeyProvider: getApiKey, testMode: false });
+  const container = createContainer({ provider });
   routes = [
     ...flightRoutes(new FlightController(container.flightSearchService)),
     ...watchRoutes(new WatchController(container)),

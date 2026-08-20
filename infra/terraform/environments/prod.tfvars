@@ -6,3 +6,8 @@ price_check_schedule   = "rate(3 hours)"
 price_tracking_enabled = false
 
 monthly_budget_usd = 30
+
+api_throttling_rate_limit         = 20
+api_throttling_burst_limit        = 40
+price_worker_reserved_concurrency = 2
+notification_reserved_concurrency = 10

@@ -73,6 +73,12 @@ resource "aws_apigatewayv2_stage" "default" {
   name        = "$default"
   auto_deploy = true
 
+  default_route_settings {
+    detailed_metrics_enabled = true
+    throttling_burst_limit   = var.api_throttling_burst_limit
+    throttling_rate_limit    = var.api_throttling_rate_limit
+  }
+
   access_log_settings {
     destination_arn = aws_cloudwatch_log_group.api_gateway.arn
     format = jsonencode({

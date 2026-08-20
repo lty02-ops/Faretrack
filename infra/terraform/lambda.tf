@@ -20,7 +20,11 @@ resource "aws_lambda_function" "api" {
   timeout          = 30
 
   environment {
-    variables = local.lambda_common_environment
+    variables = merge(local.lambda_common_environment, {
+      SERPAPI_MONTHLY_REQUEST_LIMIT = "200"
+      SERPAPI_SECRET_ARN            = aws_secretsmanager_secret.serpapi.arn
+      TEST_MODE                     = "false"
+    })
   }
 
   depends_on = [
@@ -56,14 +60,15 @@ resource "aws_lambda_function" "scheduler" {
 }
 
 resource "aws_lambda_function" "price_worker" {
-  function_name    = "${local.name_prefix}-price-worker"
-  role             = aws_iam_role.price_worker_lambda.arn
-  handler          = "backend/src/handlers/priceWorker.handler"
-  runtime          = local.lambda_runtime
-  filename         = local.lambda_package_path
-  source_code_hash = filebase64sha256(local.lambda_package_path)
-  memory_size      = 512
-  timeout          = 60
+  function_name                  = "${local.name_prefix}-price-worker"
+  role                           = aws_iam_role.price_worker_lambda.arn
+  handler                        = "backend/src/handlers/priceWorker.handler"
+  runtime                        = local.lambda_runtime
+  filename                       = local.lambda_package_path
+  source_code_hash               = filebase64sha256(local.lambda_package_path)
+  memory_size                    = 512
+  timeout                        = 60
+  reserved_concurrent_executions = var.price_worker_reserved_concurrency
 
   environment {
     variables = merge(local.lambda_common_environment, {
@@ -84,14 +89,15 @@ resource "aws_lambda_function" "price_worker" {
 }
 
 resource "aws_lambda_function" "notification" {
-  function_name    = "${local.name_prefix}-notification"
-  role             = aws_iam_role.notification_lambda.arn
-  handler          = "backend/src/handlers/notification.handler"
-  runtime          = local.lambda_runtime
-  filename         = local.lambda_package_path
-  source_code_hash = filebase64sha256(local.lambda_package_path)
-  memory_size      = 256
-  timeout          = 30
+  function_name                  = "${local.name_prefix}-notification"
+  role                           = aws_iam_role.notification_lambda.arn
+  handler                        = "backend/src/handlers/notification.handler"
+  runtime                        = local.lambda_runtime
+  filename                       = local.lambda_package_path
+  source_code_hash               = filebase64sha256(local.lambda_package_path)
+  memory_size                    = 256
+  timeout                        = 30
+  reserved_concurrent_executions = var.notification_reserved_concurrency
 
   environment {
     variables = merge(local.lambda_common_environment, {
@@ -112,6 +118,10 @@ resource "aws_lambda_event_source_mapping" "price_worker" {
   function_name           = aws_lambda_function.price_worker.arn
   batch_size              = 10
   function_response_types = ["ReportBatchItemFailures"]
+
+  scaling_config {
+    maximum_concurrency = var.price_worker_reserved_concurrency
+  }
 }
 
 resource "aws_lambda_event_source_mapping" "notification" {
@@ -119,4 +129,8 @@ resource "aws_lambda_event_source_mapping" "notification" {
   function_name           = aws_lambda_function.notification.arn
   batch_size              = 10
   function_response_types = ["ReportBatchItemFailures"]
+
+  scaling_config {
+    maximum_concurrency = var.notification_reserved_concurrency
+  }
 }

@@ -35,3 +35,4 @@ crash.*.log
 android/key.properties
 android/.idea/
 *.iml
+.vscode/

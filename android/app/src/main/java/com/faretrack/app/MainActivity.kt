@@ -19,6 +19,7 @@ import java.util.concurrent.Executors
 
 class MainActivity : Activity() {
     private val executor = Executors.newSingleThreadExecutor()
+    private lateinit var auth: AuthManager
     private lateinit var api: ApiClient
     private lateinit var content: LinearLayout
     private var lastQuery: JSONObject? = null
@@ -29,13 +30,45 @@ class MainActivity : Activity() {
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
-        api = ApiClient(this)
-        showSearch()
+        auth = AuthManager(this)
+        api = ApiClient(this, auth)
+        if (auth.isAuthorized) showSearch() else showLogin()
+    }
+
+    @Deprecated("AppAuth uses the activity result returned by the browser")
+    override fun onActivityResult(requestCode: Int, resultCode: Int, data: Intent?) {
+        super.onActivityResult(requestCode, resultCode, data)
+        if (requestCode != AuthManager.LOGIN_REQUEST_CODE) return
+        auth.handleAuthorizationResult(data) { result ->
+            runOnUiThread {
+                result.onSuccess { showSearch() }
+                    .onFailure { toast(it.message ?: "Login failed.") }
+            }
+        }
     }
 
     override fun onDestroy() {
         executor.shutdownNow()
+        auth.close()
         super.onDestroy()
+    }
+
+    private fun showLogin() {
+        val root = column().apply {
+            setPadding(dp(24), dp(48), dp(24), dp(24))
+            setBackgroundColor(paper)
+            gravity = Gravity.CENTER_VERTICAL
+        }
+        root.addView(label("Faretrack", 32, ink, true))
+        root.addView(space(10))
+        root.addView(label("Sign in with Google or Kakao to track flight prices.", 16, muted))
+        root.addView(space(28))
+        val login = action("Sign in", Color.WHITE, teal)
+        login.setOnClickListener {
+            startActivityForResult(auth.authorizationIntent(), AuthManager.LOGIN_REQUEST_CODE)
+        }
+        root.addView(login, LinearLayout.LayoutParams(-1, dp(58)))
+        setContentView(root)
     }
 
     private fun shell() {
@@ -46,6 +79,9 @@ class MainActivity : Activity() {
         }
         header.addView(label("F  Faretrack", 22, Color.WHITE, true), LinearLayout.LayoutParams(0, dp(48), 1f))
         header.addView(action("API 설정", Color.WHITE, Color.TRANSPARENT).apply { setOnClickListener { showSettings() } })
+        header.addView(action("Logout", Color.WHITE, Color.TRANSPARENT).apply {
+            setOnClickListener { auth.logout(); showLogin() }
+        })
         root.addView(header)
 
         content = column().apply { setPadding(dp(18), dp(24), dp(18), dp(100)) }
