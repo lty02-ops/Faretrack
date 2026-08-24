@@ -3,6 +3,8 @@ data "aws_caller_identity" "current" {}
 resource "aws_cognito_user_pool" "faretrack" {
   name = "${local.name_prefix}-users"
 
+  user_pool_tier = "ESSENTIALS"
+
   auto_verified_attributes = ["email"]
 
   username_configuration {
@@ -29,8 +31,9 @@ resource "aws_cognito_user_pool" "faretrack" {
 }
 
 resource "aws_cognito_user_pool_domain" "faretrack" {
-  domain       = "${local.name_prefix}-${data.aws_caller_identity.current.account_id}"
-  user_pool_id = aws_cognito_user_pool.faretrack.id
+  domain                = "${local.name_prefix}-${data.aws_caller_identity.current.account_id}"
+  user_pool_id          = aws_cognito_user_pool.faretrack.id
+  managed_login_version = 2
 }
 
 resource "aws_cognito_identity_provider" "google" {
@@ -40,8 +43,8 @@ resource "aws_cognito_identity_provider" "google" {
 
   provider_details = {
     authorize_scopes = "openid email profile"
-    client_id        = var.google_client_id
-    client_secret    = var.google_client_secret
+    client_id        = trimspace(var.google_client_id)
+    client_secret    = trimspace(var.google_client_secret)
   }
 
   attribute_mapping = {
@@ -60,8 +63,8 @@ resource "aws_cognito_identity_provider" "kakao" {
   provider_details = {
     attributes_request_method = "GET"
     authorize_scopes          = "openid profile_nickname"
-    client_id                 = var.kakao_client_id
-    client_secret             = var.kakao_client_secret
+    client_id                 = trimspace(var.kakao_client_id)
+    client_secret             = trimspace(var.kakao_client_secret)
     oidc_issuer               = "https://kauth.kakao.com"
   }
 
@@ -96,4 +99,10 @@ resource "aws_cognito_user_pool_client" "android" {
     id_token      = "hours"
     refresh_token = "days"
   }
+}
+
+resource "aws_cognito_managed_login_branding" "android" {
+  user_pool_id                = aws_cognito_user_pool.faretrack.id
+  client_id                   = aws_cognito_user_pool_client.android.id
+  use_cognito_provided_values = true
 }

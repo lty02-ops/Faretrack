@@ -1,0 +1,77 @@
+package com.faretrack.app
+
+object AirportCatalog {
+    val airports = listOf(
+        // 대한민국
+        "서울 인천국제공항 / Seoul Incheon (ICN)", "서울 김포국제공항 / Seoul Gimpo (GMP)",
+        "부산 김해국제공항 / Busan Gimhae (PUS)", "제주국제공항 / Jeju (CJU)",
+        "대구국제공항 / Daegu (TAE)", "청주국제공항 / Cheongju (CJJ)",
+        "무안국제공항 / Muan (MWX)", "양양국제공항 / Yangyang (YNY)",
+        "울산공항 / Ulsan (USN)", "광주공항 / Gwangju (KWJ)", "여수공항 / Yeosu (RSU)",
+        "군산공항 / Gunsan (KUV)", "원주공항 / Wonju (WJU)", "사천공항 / Sacheon (HIN)",
+        "포항경주공항 / Pohang Gyeongju (KPO)",
+
+        // 일본
+        "도쿄 나리타국제공항 / Tokyo Narita (NRT)", "도쿄 하네다공항 / Tokyo Haneda (HND)",
+        "오사카 간사이국제공항 / Osaka Kansai (KIX)", "오사카 이타미공항 / Osaka Itami (ITM)",
+        "후쿠오카공항 / Fukuoka (FUK)", "삿포로 신치토세공항 / Sapporo New Chitose (CTS)",
+        "오키나와 나하공항 / Okinawa Naha (OKA)", "나고야 주부국제공항 / Nagoya Chubu (NGO)",
+        "기타큐슈공항 / Kitakyushu (KKJ)", "히로시마공항 / Hiroshima (HIJ)",
+        "가고시마공항 / Kagoshima (KOJ)", "구마모토공항 / Kumamoto (KMJ)",
+        "나가사키공항 / Nagasaki (NGS)", "마쓰야마공항 / Matsuyama (MYJ)",
+        "다카마쓰공항 / Takamatsu (TAK)", "센다이공항 / Sendai (SDJ)",
+
+        // 중국·홍콩·대만·몽골
+        "베이징 수도국제공항 / Beijing Capital (PEK)", "베이징 다싱국제공항 / Beijing Daxing (PKX)",
+        "상하이 푸둥국제공항 / Shanghai Pudong (PVG)", "상하이 훙차오국제공항 / Shanghai Hongqiao (SHA)",
+        "칭다오 자오둥국제공항 / Qingdao (TAO)", "광저우 바이윈국제공항 / Guangzhou (CAN)",
+        "선전 바오안국제공항 / Shenzhen (SZX)", "청두 톈푸국제공항 / Chengdu Tianfu (TFU)",
+        "시안 셴양국제공항 / Xian (XIY)", "항저우 샤오산국제공항 / Hangzhou (HGH)",
+        "난징 루커우국제공항 / Nanjing (NKG)", "다롄 저우수이쯔국제공항 / Dalian (DLC)",
+        "샤먼 가오치국제공항 / Xiamen (XMN)", "홍콩국제공항 / Hong Kong (HKG)",
+        "마카오국제공항 / Macau (MFM)", "타이베이 타오위안국제공항 / Taipei Taoyuan (TPE)",
+        "타이베이 쑹산공항 / Taipei Songshan (TSA)", "가오슝국제공항 / Kaohsiung (KHH)",
+        "울란바토르 칭기즈칸국제공항 / Ulaanbaatar (UBN)",
+
+        // 동남아시아·남아시아
+        "방콕 수완나품공항 / Bangkok Suvarnabhumi (BKK)", "방콕 돈므앙공항 / Bangkok Don Mueang (DMK)",
+        "싱가포르 창이공항 / Singapore Changi (SIN)", "하노이 노이바이공항 / Hanoi (HAN)",
+        "호찌민 떤선녓공항 / Ho Chi Minh City (SGN)", "다낭국제공항 / Da Nang (DAD)",
+        "나트랑 깜라인국제공항 / Nha Trang Cam Ranh (CXR)", "푸꾸옥국제공항 / Phu Quoc (PQC)",
+        "마닐라 니노이아키노국제공항 / Manila (MNL)", "세부 막탄국제공항 / Cebu (CEB)",
+        "보라카이 칼리보국제공항 / Boracay Kalibo (KLO)", "클라크국제공항 / Clark (CRK)",
+        "쿠알라룸푸르국제공항 / Kuala Lumpur (KUL)", "코타키나발루국제공항 / Kota Kinabalu (BKI)",
+        "발리 응우라라이국제공항 / Bali Denpasar (DPS)", "자카르타 수카르노하타국제공항 / Jakarta (CGK)",
+        "치앙마이국제공항 / Chiang Mai (CNX)", "푸껫국제공항 / Phuket (HKT)",
+        "비엔티안 왓따이국제공항 / Vientiane (VTE)", "루앙프라방국제공항 / Luang Prabang (LPQ)",
+        "프놈펜국제공항 / Phnom Penh (PNH)", "시엠레아프 앙코르국제공항 / Siem Reap (SAI)",
+        "델리 인디라간디국제공항 / Delhi (DEL)", "뭄바이 차트라파티시바지국제공항 / Mumbai (BOM)",
+
+        // 미주·태평양
+        "괌 안토니오 B. 원 팻 국제공항 / Guam (GUM)", "사이판국제공항 / Saipan (SPN)",
+        "호놀룰루국제공항 / Honolulu (HNL)", "로스앤젤레스국제공항 / Los Angeles (LAX)",
+        "샌프란시스코국제공항 / San Francisco (SFO)", "시애틀 터코마국제공항 / Seattle (SEA)",
+        "뉴욕 존 F. 케네디국제공항 / New York JFK (JFK)", "뉴욕 뉴어크국제공항 / New York Newark (EWR)",
+        "라스베이거스 해리리드국제공항 / Las Vegas (LAS)", "시카고 오헤어국제공항 / Chicago (ORD)",
+        "댈러스 포트워스국제공항 / Dallas Fort Worth (DFW)", "애틀랜타 하츠필드잭슨국제공항 / Atlanta (ATL)",
+        "보스턴 로건국제공항 / Boston (BOS)", "워싱턴 덜레스국제공항 / Washington Dulles (IAD)",
+        "밴쿠버국제공항 / Vancouver (YVR)", "토론토 피어슨국제공항 / Toronto (YYZ)",
+
+        // 유럽·중동
+        "런던 히스로공항 / London Heathrow (LHR)", "런던 개트윅공항 / London Gatwick (LGW)",
+        "파리 샤를드골공항 / Paris Charles de Gaulle (CDG)", "파리 오를리공항 / Paris Orly (ORY)",
+        "프랑크푸르트공항 / Frankfurt (FRA)", "뮌헨공항 / Munich (MUC)",
+        "암스테르담 스키폴공항 / Amsterdam (AMS)", "로마 피우미치노공항 / Rome (FCO)",
+        "밀라노 말펜사공항 / Milan (MXP)", "바르셀로나 엘프라트공항 / Barcelona (BCN)",
+        "마드리드 바라하스공항 / Madrid (MAD)", "취리히공항 / Zurich (ZRH)",
+        "빈국제공항 / Vienna (VIE)", "프라하 바츨라프하벨공항 / Prague (PRG)",
+        "이스탄불공항 / Istanbul (IST)", "아테네국제공항 / Athens (ATH)",
+        "두바이국제공항 / Dubai (DXB)", "아부다비국제공항 / Abu Dhabi (AUH)",
+        "도하 하마드국제공항 / Doha (DOH)",
+
+        // 대양주
+        "시드니 킹스포드스미스공항 / Sydney (SYD)", "멜버른공항 / Melbourne (MEL)",
+        "브리즈번공항 / Brisbane (BNE)", "퍼스공항 / Perth (PER)",
+        "오클랜드국제공항 / Auckland (AKL)", "크라이스트처치국제공항 / Christchurch (CHC)"
+    )
+}

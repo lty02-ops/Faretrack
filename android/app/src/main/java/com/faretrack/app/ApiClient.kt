@@ -11,11 +11,20 @@ class ApiClient(context: Context, private val auth: AuthManager) {
     private val developmentApi = DevelopmentApi(context.applicationContext)
 
     var baseUrl: String
-        get() = preferences.getString("api_url", BuildConfig.DEFAULT_API_BASE_URL) ?: BuildConfig.DEFAULT_API_BASE_URL
-        set(value) { preferences.edit().putString("api_url", value.trim().trimEnd('/')).apply() }
+        get() = preferences.getString("api_url_v2", BuildConfig.DEFAULT_API_BASE_URL) ?: BuildConfig.DEFAULT_API_BASE_URL
+        set(value) { preferences.edit().putString("api_url_v2", value.trim().trimEnd('/')).apply() }
 
     fun search(query: JSONObject) = if (useDevelopmentApi) developmentApi.search(query)
         else requestObject("POST", "/api/flights/search", query)
+
+    fun bookingOptions(bookingToken: String, departureToken: String, selectedFlights: JSONObject?, query: JSONObject) = if (useDevelopmentApi) developmentApi.bookingOptions(bookingToken.ifBlank { departureToken })
+        else requestObject("POST", "/api/flights/booking-options", JSONObject().put("bookingToken", bookingToken).put("departureToken", departureToken).put("selectedFlights", selectedFlights).put("query", query))
+
+    fun returnOptions(departureToken: String, query: JSONObject) = if (useDevelopmentApi) developmentApi.returnOptions()
+        else requestObject("POST", "/api/flights/return-options", JSONObject().put("departureToken", departureToken).put("query", query))
+
+    fun registerDevice(token: String) = if (useDevelopmentApi) JSONObject().put("registered", true)
+        else requestObject("POST", "/api/devices", JSONObject().put("token", token).put("platform", "ANDROID"))
 
     fun createAlert(payload: JSONObject) = if (useDevelopmentApi) developmentApi.createAlert(payload)
         else requestObject("POST", "/api/alerts", payload)
@@ -44,7 +53,7 @@ class ApiClient(context: Context, private val auth: AuthManager) {
         try {
             connection.requestMethod = method
             connection.connectTimeout = 10_000
-            connection.readTimeout = 15_000
+            connection.readTimeout = 35_000
             connection.setRequestProperty("Accept", "application/json")
             connection.setRequestProperty("Authorization", "Bearer ${auth.freshAccessToken()}")
             payload?.let {

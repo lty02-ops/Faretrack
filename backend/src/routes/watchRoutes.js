@@ -4,6 +4,7 @@ function watchRoutes(controller){return[
  {method:'PATCH',pattern:/^\/api\/alerts\/(?<id>[^/]+)$/,handler:req=>controller.update(req)},
  {method:'DELETE',pattern:/^\/api\/alerts\/(?<id>[^/]+)$/,handler:req=>controller.remove(req)},
  {method:'GET',pattern:/^\/api\/history\/(?<watchKey>.+)$/,handler:req=>controller.history(req)},
+ {method:'POST',pattern:/^\/api\/devices$/,handler:req=>controller.registerDevice(req)},
  {method:'POST',pattern:/^\/internal\/price-check$/,handler:req=>controller.checkPrices(req)}
 ];}
 module.exports = { watchRoutes };

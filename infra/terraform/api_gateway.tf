@@ -1,11 +1,15 @@
 locals {
   protected_api_routes = toset([
     "POST /api/flights/search",
+    "POST /api/flights/return-options",
+    "POST /api/flights/booking-options",
+    "POST /api/devices",
     "POST /api/alerts",
     "GET /api/alerts",
     "PATCH /api/alerts/{id}",
     "DELETE /api/alerts/{id}",
-    "GET /api/history/{watchKey+}"
+    "GET /api/history/{watchKey+}",
+    "POST /internal/price-check"
   ])
 }
 

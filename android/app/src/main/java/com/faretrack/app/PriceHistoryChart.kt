@@ -19,7 +19,7 @@ import kotlin.math.abs
 class PriceHistoryChart(
     context: Context,
     history: JSONArray,
-    private val targetPrice: Int
+    private val targetPrice: Int? = null
 ) : View(context) {
     private data class Point(val price: Int, val checkedAt: String, val timestamp: Long?)
 
@@ -79,8 +79,8 @@ class PriceHistoryChart(
         val right = width - dp(8f)
         val top = dp(34f)
         val bottom = height - dp(26f)
-        val rawMin = minOf(prices.min(), targetPrice)
-        val rawMax = maxOf(prices.max(), targetPrice)
+        val rawMin = targetPrice?.let { minOf(prices.min(), it) } ?: prices.min()
+        val rawMax = targetPrice?.let { maxOf(prices.max(), it) } ?: prices.max()
         val padding = maxOf(5_000, (rawMax - rawMin) / 5)
         val minPrice = rawMin - padding
         val maxPrice = rawMax + padding
@@ -106,9 +106,11 @@ class PriceHistoryChart(
         }
         fun yFor(price: Int) = bottom - (price - minPrice) / range * (bottom - top)
 
-        val targetY = yFor(targetPrice)
-        canvas.drawLine(left, targetY, right, targetY, targetPaint)
-        canvas.drawText("목표 ${format(targetPrice)}원", left, (targetY - dp(5f)).coerceAtLeast(dp(12f)), textPaint)
+        targetPrice?.let {
+            val targetY = yFor(it)
+            canvas.drawLine(left, targetY, right, targetY, targetPaint)
+            canvas.drawText("목표 ${format(it)}원", left, (targetY - dp(5f)).coerceAtLeast(dp(12f)), textPaint)
+        }
 
         val path = Path()
         prices.forEachIndexed { index, price ->

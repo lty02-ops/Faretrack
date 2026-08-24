@@ -6,5 +6,6 @@ class WatchController {
   async remove({params,userId}){const removed=await this.watchService.remove(params.id,userId);return{status:removed?204:404,body:removed?null:{error:'Not found'}};}
   async history({params}){return{status:200,body:await this.priceHistoryRepository.listByWatchKey(params.watchKey)};}
   async checkPrices(){return{status:200,body:await this.priceCheckService.checkActiveTargets()};}
+  async registerDevice({body,userId}){return{status:200,body:await this.watchService.registerDevice(userId,body)};}
 }
 module.exports = { WatchController };

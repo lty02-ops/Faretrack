@@ -1,6 +1,17 @@
 plugins {
     id 'com.android.application'
     id 'org.jetbrains.kotlin.android'
+    id 'com.google.gms.google-services'
+}
+
+def faretrackProperties = new Properties()
+def faretrackPropertiesFile = rootProject.file('faretrack.local.properties')
+if (faretrackPropertiesFile.exists()) {
+    faretrackPropertiesFile.withInputStream { faretrackProperties.load(it) }
+}
+
+def faretrackProperty = { String key, String fallback ->
+    faretrackProperties.getProperty(key, fallback).replace('\\', '\\\\').replace('"', '\\"')
 }
 
 android {
@@ -13,10 +24,11 @@ android {
         targetSdk 36
         versionCode 1
         versionName '1.0.0'
-        buildConfigField 'String', 'DEFAULT_API_BASE_URL', '"https://pjlbhuggc3.execute-api.ap-northeast-2.amazonaws.com"'
-        buildConfigField 'String', 'COGNITO_CLIENT_ID', '"77qfbim87jlute7qh2obpr1jb1"'
-        buildConfigField 'String', 'COGNITO_DOMAIN', '"https://faretrack-dev-022868553365.auth.ap-northeast-2.amazoncognito.com"'
+        buildConfigField 'String', 'DEFAULT_API_BASE_URL', "\"${faretrackProperty('faretrack.apiBaseUrl', 'https://example.invalid')}\""
+        buildConfigField 'String', 'COGNITO_CLIENT_ID', "\"${faretrackProperty('faretrack.cognitoClientId', 'not-configured')}\""
+        buildConfigField 'String', 'COGNITO_DOMAIN', "\"${faretrackProperty('faretrack.cognitoDomain', 'https://example.invalid')}\""
         buildConfigField 'String', 'COGNITO_REDIRECT_URI', '"faretrack://auth/callback"'
+        buildConfigField 'String', 'COGNITO_LOGOUT_URI', '"faretrack-signout://callback"'
         manifestPlaceholders = [appAuthRedirectScheme: 'faretrack']
     }
 
@@ -27,4 +39,7 @@ android {
 
 dependencies {
     implementation 'net.openid:appauth:0.11.1'
+    implementation platform('com.google.firebase:firebase-bom:34.4.0')
+    implementation 'com.google.firebase:firebase-messaging'
+    implementation 'androidx.core:core-ktx:1.15.0'
 }

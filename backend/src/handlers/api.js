@@ -15,8 +15,13 @@ let apiKey;
 async function getApiKey() {
   if (apiKey) return apiKey;
   const secret = await secrets.send(new GetSecretValueCommand({ SecretId: process.env.SERPAPI_SECRET_ARN }));
-  const value = JSON.parse(secret.SecretString || '{}');
-  apiKey = value.apiKey || '';
+  const raw = secret.SecretString || '';
+  try {
+    const value = JSON.parse(raw);
+    apiKey = typeof value === 'string' ? value : value.apiKey || '';
+  } catch {
+    apiKey = raw.trim();
+  }
   return apiKey;
 }
 

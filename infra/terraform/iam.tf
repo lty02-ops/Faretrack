@@ -77,6 +77,11 @@ resource "aws_iam_role_policy" "api_lambda" {
         Effect   = "Allow"
         Action   = ["secretsmanager:GetSecretValue"]
         Resource = aws_secretsmanager_secret.serpapi.arn
+      },
+      {
+        Effect   = "Allow"
+        Action   = ["sqs:SendMessage"]
+        Resource = aws_sqs_queue.notification.arn
       }
     ]
   })
@@ -174,6 +179,7 @@ resource "aws_iam_role_policy" "notification_lambda" {
         Action = [
           "dynamodb:GetItem",
           "dynamodb:PutItem",
+          "dynamodb:UpdateItem",
           "dynamodb:Query",
           "dynamodb:Scan"
         ]
@@ -189,6 +195,11 @@ resource "aws_iam_role_policy" "notification_lambda" {
           "ses:SendRawEmail"
         ]
         Resource = var.ses_from_email == "" ? ["*"] : [aws_sesv2_email_identity.sender[0].arn]
+      },
+      {
+        Effect   = "Allow"
+        Action   = ["secretsmanager:GetSecretValue"]
+        Resource = aws_secretsmanager_secret.firebase.arn
       }
     ]
   })

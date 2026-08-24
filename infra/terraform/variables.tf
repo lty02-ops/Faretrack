@@ -70,7 +70,7 @@ variable "android_auth_callback_url" {
 variable "android_auth_logout_url" {
   description = "Android deep link used after Cognito logout"
   type        = string
-  default     = "faretrack://auth/signout"
+  default     = "faretrack-signout://callback"
 }
 
 variable "api_allowed_origins" {
@@ -125,7 +125,7 @@ variable "api_throttling_burst_limit" {
 }
 
 variable "price_worker_reserved_concurrency" {
-  description = "Reserved concurrency and maximum SQS concurrency for the price worker"
+  description = "Maximum SQS concurrency for the price worker"
   type        = number
   default     = 2
 
@@ -136,7 +136,7 @@ variable "price_worker_reserved_concurrency" {
 }
 
 variable "notification_reserved_concurrency" {
-  description = "Reserved concurrency and maximum SQS concurrency for the notification worker"
+  description = "Maximum SQS concurrency for the notification worker"
   type        = number
   default     = 5
 

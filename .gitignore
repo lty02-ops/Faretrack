@@ -10,6 +10,7 @@ dist/
 dynamodb-data/
 android/.gradle/
 android/local.properties
+android/faretrack.local.properties
 android/**/build/
 .android-gradle-cache/
 

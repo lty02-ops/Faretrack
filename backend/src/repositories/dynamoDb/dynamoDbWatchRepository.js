@@ -39,5 +39,13 @@ class DynamoDbWatchRepository {
   async alertsForTarget(key) {
     const items=[];let cursor;do{const result=await this.client.send(new QueryCommand({TableName:this.tableName,KeyConditionExpression:'PK = :pk AND begins_with(SK, :prefix)',FilterExpression:'#active = :active',ExpressionAttributeNames:{'#active':'active'},ExpressionAttributeValues:{':pk':`WATCH#${key}`,':prefix':'ALERT#',':active':true},ExclusiveStartKey:cursor}));items.push(...(result.Items||[]));cursor=result.LastEvaluatedKey;}while(cursor);return items.map(item=>item.data);
   }
+  async saveDevice(userId, device) {
+    await this.client.send(new PutCommand({TableName:this.tableName,Item:{PK:`USER#${userId}`,SK:`DEVICE#${device.id}`,entityType:'PushDevice',data:device}}));
+    return device;
+  }
+  async listDevices(userId) {
+    const result=await this.client.send(new QueryCommand({TableName:this.tableName,KeyConditionExpression:'PK = :pk AND begins_with(SK, :prefix)',ExpressionAttributeValues:{':pk':`USER#${userId}`,':prefix':'DEVICE#'}}));
+    return (result.Items||[]).map(item=>item.data);
+  }
 }
 module.exports = { DynamoDbWatchRepository };

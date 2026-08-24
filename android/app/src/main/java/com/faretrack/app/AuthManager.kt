@@ -38,15 +38,17 @@ class AuthManager(context: Context) {
         preferences.edit().putBoolean(DEVELOPMENT_AUTH_KEY, true).apply()
     }
 
-    fun authorizationIntent(): Intent {
-        val request = AuthorizationRequest.Builder(
+    fun authorizationIntent(provider: String): Intent {
+        val builder = AuthorizationRequest.Builder(
             configuration,
             BuildConfig.COGNITO_CLIENT_ID,
             ResponseTypeValues.CODE,
             Uri.parse(BuildConfig.COGNITO_REDIRECT_URI)
         )
             .setScope("openid email profile")
-            .build()
+            .setAdditionalParameters(mapOf("identity_provider" to provider))
+        if (provider.equals("Google", ignoreCase = true)) builder.setPrompt("login select_account")
+        val request = builder.build()
         return service.getAuthorizationRequestIntent(request)
     }
 
@@ -99,6 +101,15 @@ class AuthManager(context: Context) {
             .remove(AUTH_STATE_KEY)
             .remove(DEVELOPMENT_AUTH_KEY)
             .apply()
+    }
+
+    fun logoutIntent(): Intent {
+        logout()
+        val uri = Uri.parse("${BuildConfig.COGNITO_DOMAIN}/logout").buildUpon()
+            .appendQueryParameter("client_id", BuildConfig.COGNITO_CLIENT_ID)
+            .appendQueryParameter("logout_uri", BuildConfig.COGNITO_LOGOUT_URI)
+            .build()
+        return Intent(Intent.ACTION_VIEW, uri)
     }
 
     fun close() = service.dispose()

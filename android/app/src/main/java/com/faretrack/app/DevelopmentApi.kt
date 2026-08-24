@@ -19,10 +19,29 @@ class DevelopmentApi(context: Context) {
             .put(flight("Asiana Airlines", "OZ102", "10:50", "13:15", 0, basePrice + 17_400, "Trip.com"))
             .put(flight("Jeju Air", "7C1102", "08:10", "10:35", 0, basePrice + 6_200, "Google Flights"))
             .put(flight("Jin Air", "LJ203", "15:20", "17:45", 1, basePrice - 5_800, "Kiwi.com"))
+            .put(flight("Korean Air", "KE705", "13:10", "15:35", 0, basePrice + 21_300, "Google Flights"))
+            .put(flight("Asiana Airlines", "OZ104", "14:20", "16:45", 0, basePrice + 24_900, "Trip.com"))
+            .put(flight("Jeju Air", "7C1104", "16:00", "18:25", 0, basePrice + 11_800, "Google Flights"))
+            .put(flight("Jin Air", "LJ205", "17:30", "20:45", 1, basePrice + 2_700, "Kiwi.com"))
+            .put(flight("Korean Air", "KE707", "18:15", "20:40", 0, basePrice + 29_500, "Google Flights"))
+            .put(flight("Asiana Airlines", "OZ106", "19:05", "21:30", 0, basePrice + 31_200, "Trip.com"))
+            .put(flight("Jeju Air", "7C1106", "20:10", "22:35", 0, basePrice + 15_600, "Google Flights"))
+            .put(flight("Jin Air", "LJ207", "21:00", "23:25", 0, basePrice + 8_900, "Kiwi.com"))
 
+        val marketHistory = JSONArray()
+        val now = Instant.now()
+        for (daysAgo in 30 downTo 0 step 3) {
+            val price = basePrice + ((daysAgo * 1379) % 31_000) - 8_000
+            marketHistory.put(pricePoint(price, now.minusSeconds(daysAgo * 86_400L)))
+        }
         return JSONObject()
             .put("key", "$origin-$destination-${query.getString("departureDate")}")
             .put("flights", flights)
+            .put("priceInsights", JSONObject()
+                .put("lowestPrice", basePrice)
+                .put("priceLevel", "typical")
+                .put("typicalPriceRange", JSONArray().put(basePrice - 12_000).put(basePrice + 45_000))
+                .put("history", marketHistory))
             .put("cached", false)
     }
 
@@ -39,8 +58,11 @@ class DevelopmentApi(context: Context) {
         val alert = JSONObject()
             .put("id", UUID.randomUUID().toString())
             .put("targetPrice", payload.getInt("targetPrice"))
+            .put("baselinePrice", payload.optInt("baselinePrice", initialPrice))
             .put("dropRatePercent", payload.optInt("dropRatePercent", 10))
             .put("active", true)
+            .put("targetReachedNotified", false)
+            .put("percentageDropTriggered", false)
             .put("target", JSONObject().put("query", query))
             .put("history", history)
 
@@ -48,6 +70,18 @@ class DevelopmentApi(context: Context) {
         saveAlerts(alerts)
         return JSONObject(alert.toString())
     }
+
+    fun bookingOptions(bookingToken: String): JSONObject = JSONObject().put("options", JSONArray()
+        .put(JSONObject()
+            .put("id", "booking_mock_0")
+            .put("seller", "Trip.com")
+            .put("segment", "전체 여정")
+            .put("price", 128_000)
+            .put("url", "https://www.trip.com")
+            .put("postData", "")))
+
+    fun returnOptions(): JSONObject = JSONObject().put("flights", JSONArray()
+        .put(flight("Korean Air", "KE704", "18:10", "20:35", 0, 146_000, "Google Flights")))
 
     fun getAlerts(): JSONArray = JSONArray(loadAlerts().toString())
 
@@ -103,6 +137,8 @@ class DevelopmentApi(context: Context) {
         .put("stops", stops)
         .put("price", price)
         .put("seller", seller)
+        .put("bookingToken", "mock_booking_token_${UUID.randomUUID()}")
+        .put("departureToken", "")
         .put("bookingUrl", "https://www.google.com/travel/flights")
 
     private fun pricePoint(price: Int, checkedAt: Instant = Instant.now()) = JSONObject()
