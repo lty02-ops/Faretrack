@@ -71,7 +71,7 @@ Lambda 실행 역할은 필요한 DynamoDB 테이블, SQS 큐, secret에만 접�
 
 ### CI/CD
 
-![Faretrack CI/CD](image/architecture_cicd.png)
+![Faretrack CI/CD](image/architecture_CICD.png)
 
 Pull Request와 `main` 브랜치 push에서 GitHub Actions가 Node.js 테스트, Lambda 패키지 빌드, Terraform 형식 검사와 구문 검증을 수행합니다. 개발 환경 배포는 `workflow_dispatch`로 명시적으로 실행합니다.
 
