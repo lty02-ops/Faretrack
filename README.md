@@ -71,7 +71,7 @@ Lambda 실행 역할은 필요한 DynamoDB 테이블, SQS 큐, secret에만 접�
 
 ### CI/CD
 
-![Faretrack CI/CD](image/architecture_CICD.png)
+![Faretrack CI/CD](image/architecture_cicd.png)
 
 Pull Request와 `main` 브랜치 push에서 GitHub Actions가 Node.js 테스트, Lambda 패키지 빌드, Terraform 형식 검사와 구문 검증을 수행합니다. 개발 환경 배포는 `workflow_dispatch`로 명시적으로 실행합니다.
 
@@ -263,7 +263,3 @@ Firebase 서비스 계정 JSON 형식이 Lambda가 기대한 구조와 달라 �
 - 개발 환경의 주기 가격 추적은 비용 방지를 위해 기본적으로 꺼져 있습니다.
 - 현재 산출물은 debug APK이며 Play Store용 서명과 release 설정은 별도로 구성해야 합니다.
 
-## 개발자
-
-- GitHub: [lty02-ops](https://github.com/lty02-ops)
-- Repository: [Faretrack](https://github.com/lty02-ops/Faretrack)
