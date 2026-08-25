@@ -168,7 +168,9 @@ APK는 `android/app/build/outputs/apk/debug/app-debug.apk`에 생성됩니다.
 
 ## AWS 배포
 
-### 1. Bootstrap
+### 최초 배포
+
+#### 1. Bootstrap
 
 최초 한 번 원격 state용 S3 버킷과 GitHub OIDC 배포 역할을 생성합니다.
 
@@ -182,7 +184,7 @@ terraform output
 
 출력된 `github_deploy_role_arn`을 GitHub Repository Variable `AWS_DEPLOY_ROLE_ARN`으로 등록합니다.
 
-### 2. 환경 변수
+#### 2. 환경 변수
 
 루트의 `.env.example`을 참고해 Git에 포함되지 않는 `.env`를 작성합니다.
 
@@ -195,7 +197,7 @@ SERPAPI_API_KEY=serpapi-key
 FIREBASE_SERVICE_ACCOUNT_FILE=/path/to/firebase-adminsdk.json
 ```
 
-### 3. 개발 환경 배포
+#### 3. 애플리케이션 배포
 
 다음 스크립트가 환경 변수 로드, Lambda ZIP 생성, Terraform 적용, SerpApi/Firebase secret 등록, Android 설정 생성을 순서대로 처리합니다.
 
@@ -206,15 +208,35 @@ bash infra/scripts/deploy-dev.sh
 
 승인 질문 없이 적용하려면 `AUTO_APPROVE=true bash infra/scripts/deploy-dev.sh`를 사용합니다.
 
-배포 확인:
+최초 배포가 끝나면 생성된 `android/faretrack.local.properties`를 포함해 APK를 빌드하고 설치합니다. Google과 Kakao 개발자 콘솔에는 Terraform output의 `social_provider_callback_url`을 callback URI로 등록합니다.
+
+#### 4. 배포 확인
 
 ```bash
-cd infra/terraform
+cd /mnt/d/Lowest_airfare/infra/terraform
 terraform output
 curl "$(terraform output -raw api_base_url)/api/health"
 ```
 
-### 4. GitHub Actions 배포
+### 재배포
+
+인프라가 배포된 상태에서 백엔드 코드나 Terraform 설정을 변경했을 때는 Bootstrap을 다시 실행하지 않고 동일한 스크립트만 실행합니다. Terraform이 원격 state와 현재 AWS 리소스를 비교해 변경된 항목만 갱신하고, Lambda ZIP과 Secrets Manager 값도 새 버전으로 등록합니다.
+
+```bash
+cd /mnt/d/Lowest_airfare
+bash infra/scripts/deploy-dev.sh
+```
+
+재배포 후 API 상태를 확인합니다.
+
+```bash
+cd infra/terraform
+curl "$(terraform output -raw api_base_url)/api/health"
+```
+
+`terraform destroy`로 애플리케이션 리소스를 삭제한 뒤에도 Bootstrap의 S3 state 버킷을 유지했다면 같은 재배포 명령으로 리소스를 다시 생성할 수 있습니다. 이 경우 API Gateway URL이나 Cognito app client ID가 변경될 수 있으므로 Android 설정이 새 output으로 갱신됐는지 확인하고 APK를 다시 빌드해 설치해야 합니다.
+
+### GitHub Actions 배포
 
 GitHub의 Actions에서 개발 환경 배포 workflow를 수동 실행합니다. Repository Variable `AWS_DEPLOY_ROLE_ARN`, Google/Kakao OAuth secret, SES 발신 이메일과 모니터링 이메일 변수가 필요합니다.
 
