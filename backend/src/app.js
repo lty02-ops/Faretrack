@@ -1,5 +1,3 @@
-const fs = require('node:fs');
-const path = require('node:path');
 const { env } = require('./config/env');
 const { createDynamoDbClient } = require('./config/dynamoDb');
 const { SerpApiGoogleFlightsProvider } = require('./providers/serpApiGoogleFlightsProvider');
@@ -56,15 +54,10 @@ function sendJson(res,status,payload) { res.writeHead(status,{'Content-Type':'ap
 function createApp(overrides = {}) {
   const container=createContainer(overrides);
   const routes=[...flightRoutes(new FlightController(container.flightSearchService)),...watchRoutes(new WatchController(container)),...healthRoutes(new HealthController(env.testMode?'test':'live'))];
-  const frontendRoot=path.resolve(__dirname,'../../frontend');
   return async (req,res) => { try {
     const url=new URL(req.url,'http://localhost');
     for(const route of routes){if(req.method!==route.method)continue;const match=url.pathname.match(route.pattern);if(!match)continue;const request={body:['POST','PATCH'].includes(req.method)?await readBody(req):{},params:Object.fromEntries(Object.entries(match.groups||{}).map(([key,value])=>[key,decodeURIComponent(value)])),query:Object.fromEntries(url.searchParams)};const result=await route.handler(request);return sendJson(res,result.status,result.body);}
-    const requested=url.pathname==='/'?'index.html':url.pathname.slice(1),full=path.resolve(frontendRoot,requested);
-    const allowed=full===path.join(frontendRoot,'index.html')||full.startsWith(frontendRoot+path.sep);
-    if(!allowed||!fs.existsSync(full)||fs.statSync(full).isDirectory())return sendJson(res,404,{error:'Not found'});
-    const types={'.html':'text/html; charset=utf-8','.css':'text/css','.js':'text/javascript; charset=utf-8'};
-    res.writeHead(200,{'Content-Type':types[path.extname(full)]||'application/octet-stream'});fs.createReadStream(full).pipe(res);
+    return sendJson(res,404,{error:'Not found'});
   } catch(error) { sendJson(res,400,{error:error.message}); } };
 }
 module.exports={createApp,createContainer};
