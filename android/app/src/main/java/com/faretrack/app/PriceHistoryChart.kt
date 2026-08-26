@@ -31,6 +31,11 @@ class PriceHistoryChart(
         }
     }
     private val prices = points.map(Point::price)
+    private val lowestPrice = prices.minOrNull()
+    private val highestPrice = prices.maxOrNull()
+    private val firstTimestamp = points.mapNotNull(Point::timestamp).minOrNull()
+    private val lastTimestamp = points.mapNotNull(Point::timestamp).maxOrNull()
+    private val numberFormat = NumberFormat.getNumberInstance(Locale.KOREA)
     private var selectedIndex: Int? = null
     private val teal = Color.rgb(8, 127, 118)
     private val red = Color.rgb(190, 55, 45)
@@ -79,8 +84,8 @@ class PriceHistoryChart(
         val right = width - dp(8f)
         val top = dp(34f)
         val bottom = height - dp(26f)
-        val rawMin = targetPrice?.let { minOf(prices.min(), it) } ?: prices.min()
-        val rawMax = targetPrice?.let { maxOf(prices.max(), it) } ?: prices.max()
+        val rawMin = targetPrice?.let { minOf(lowestPrice!!, it) } ?: lowestPrice!!
+        val rawMax = targetPrice?.let { maxOf(highestPrice!!, it) } ?: highestPrice!!
         val padding = maxOf(5_000, (rawMax - rawMin) / 5)
         val minPrice = rawMin - padding
         val maxPrice = rawMax + padding
@@ -91,19 +96,6 @@ class PriceHistoryChart(
             canvas.drawLine(left, y, right, y, gridPaint)
         }
 
-        val timestamps = points.mapNotNull(Point::timestamp)
-        val firstTimestamp = timestamps.minOrNull()
-        val lastTimestamp = timestamps.maxOrNull()
-        fun xFor(index: Int): Float {
-            val timestamp = points[index].timestamp
-            return if (timestamp != null && firstTimestamp != null && lastTimestamp != null && lastTimestamp > firstTimestamp) {
-                left + (right - left) * (timestamp - firstTimestamp).toFloat() / (lastTimestamp - firstTimestamp).toFloat()
-            } else if (prices.size == 1) {
-                (left + right) / 2f
-            } else {
-                left + (right - left) * index / (prices.size - 1f)
-            }
-        }
         fun yFor(price: Int) = bottom - (price - minPrice) / range * (bottom - top)
 
         targetPrice?.let {
@@ -114,26 +106,26 @@ class PriceHistoryChart(
 
         val path = Path()
         prices.forEachIndexed { index, price ->
-            val x = xFor(index)
+            val x = xFor(index, left, right)
             val y = yFor(price)
             if (index == 0) path.moveTo(x, y) else path.lineTo(x, y)
         }
         canvas.drawPath(path, linePaint)
         prices.forEachIndexed { index, price ->
-            canvas.drawCircle(xFor(index), yFor(price), dp(4f), pointPaint)
+            canvas.drawCircle(xFor(index, left, right), yFor(price), dp(4f), pointPaint)
         }
 
         selectedIndex?.let { index ->
             val point = points[index]
-            val x = xFor(index)
+            val x = xFor(index, left, right)
             val y = yFor(point.price)
             canvas.drawLine(x, top, x, bottom, targetPaint)
             canvas.drawCircle(x, y, dp(7f), pointPaint)
             drawTooltip(canvas, x, "${formatDateTime(point.checkedAt)}  ${format(point.price)}원")
         }
 
-        canvas.drawText("최저 ${format(prices.min())}원", left, height - dp(7f), textPaint)
-        val highText = "최고 ${format(prices.max())}원"
+        canvas.drawText("최저 ${format(lowestPrice!!)}원", left, height - dp(7f), textPaint)
+        val highText = "최고 ${format(highestPrice!!)}원"
         canvas.drawText(highText, right - textPaint.measureText(highText), height - dp(7f), textPaint)
     }
 
@@ -166,21 +158,21 @@ class PriceHistoryChart(
         if (points.isEmpty() || width == 0) return
         val left = dp(8f)
         val right = width - dp(8f)
-        val timestamps = points.mapNotNull(Point::timestamp)
-        val firstTimestamp = timestamps.minOrNull()
-        val lastTimestamp = timestamps.maxOrNull()
         selectedIndex = points.indices.minByOrNull { index ->
-            val timestamp = points[index].timestamp
-            val x = if (timestamp != null && firstTimestamp != null && lastTimestamp != null && lastTimestamp > firstTimestamp) {
-                left + (right - left) * (timestamp - firstTimestamp).toFloat() / (lastTimestamp - firstTimestamp).toFloat()
-            } else if (points.size == 1) {
-                (left + right) / 2f
-            } else {
-                left + (right - left) * index / (points.size - 1f)
-            }
-            abs(x - touchX)
+            abs(xFor(index, left, right) - touchX)
         }
         invalidate()
+    }
+
+    private fun xFor(index: Int, left: Float, right: Float): Float {
+        val timestamp = points[index].timestamp
+        return if (timestamp != null && firstTimestamp != null && lastTimestamp != null && lastTimestamp > firstTimestamp) {
+            left + (right - left) * (timestamp - firstTimestamp).toFloat() / (lastTimestamp - firstTimestamp).toFloat()
+        } else if (points.size == 1) {
+            (left + right) / 2f
+        } else {
+            left + (right - left) * index / (points.size - 1f)
+        }
     }
 
     private fun clearSelection() {
@@ -201,9 +193,13 @@ class PriceHistoryChart(
     private fun formatDateTime(value: String): String = runCatching {
         Instant.parse(value)
             .atZone(ZoneId.systemDefault())
-            .format(DateTimeFormatter.ofPattern("MM.dd HH:mm"))
+            .format(DATE_TIME_FORMATTER)
     }.getOrDefault("조회 가격")
 
-    private fun format(value: Int) = NumberFormat.getNumberInstance(Locale.KOREA).format(value)
+    private fun format(value: Int) = numberFormat.format(value)
     private fun dp(value: Float) = value * resources.displayMetrics.density
+
+    private companion object {
+        val DATE_TIME_FORMATTER: DateTimeFormatter = DateTimeFormatter.ofPattern("MM.dd HH:mm")
+    }
 }
