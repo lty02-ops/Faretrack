@@ -36,7 +36,7 @@ variable "ses_from_email" {
 variable "price_tracking_enabled" {
   description = "Whether EventBridge should run scheduled flight price checks"
   type        = bool
-  default     = false
+  default     = true
 }
 
 variable "google_client_id" {
