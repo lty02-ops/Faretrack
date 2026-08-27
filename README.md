@@ -1,8 +1,8 @@
 # Faretrack
 
-항공권을 검색하고 목표 가격 또는 설정한 하락률에 도달했을 때 Android 푸시 알림을 보내는 가격 추적 서비스입니다. Kotlin Android 앱, Node.js Lambda 백엔드, AWS 서버리스 인프라로 구성되며 Terraform으로 배포합니다.
+항공권을 검색하고 목표 가격 또는 설정한 하락률에 도달했을 때 Android 푸시 알림을 보내는 가격 추적 서비스 애플리케이션입니다.
 
-사용자는 Google 또는 Kakao 계정으로 로그인한 뒤 원하는 항공편을 검색하고 가격 추적을 등록할 수 있습니다. EventBridge가 활성화된 조건을 주기적으로 확인하며, 알림 조건을 만족하면 Firebase Cloud Messaging(FCM)으로 휴대폰 알림을 전송합니다.
+사용자는 Google 또는 Kakao 계정으로 로그인한 뒤 항공편을 검색하고 가격 추적을 등록할 수 있습니다. EventBridge가 활성화된 조건을 3시간 주기로 확인하며, 알림 조건을 만족하면 Firebase Cloud Messaging(FCM)으로 휴대폰 알림을 전송합니다.
 
 ## 기능
 
@@ -21,42 +21,42 @@
 
 ## 아키텍처
 
-### 전체 구성
+### 주요 구성
 
 ![Faretrack 전체 아키텍처](image/architecture_overall.png)
 
-Faretrack은 별도의 EC2 서버나 VPC를 두지 않는 관리형 서버리스 구조입니다. Android 앱은 Amazon Cognito에서 발급받은 JWT로 API Gateway를 호출하고, API Lambda가 DynamoDB와 SerpApi를 이용해 항공편 검색, 가격 추적, 가격 이력을 처리합니다.
+Faretrack은 별도의 EC2 서버나 VPC를 따로 두지 않는 관리형 **서버리스 아키텍쳐**로 설계하였습니다. Android 앱은 Amazon Cognito에서 발급받은 JWT로 API Gateway를 호출하고, API Lambda가 DynamoDB와 SerpApi를 이용해 항공편 검색, 가격 추적 등록, 가격 추이 조회 등을 처리합니다.
 
-예약된 가격 확인은 사용자 요청 경로와 분리되어 있습니다. EventBridge, Scheduler Lambda, SQS, Price Worker가 비동기로 동작하므로 외부 API의 일시적인 장애가 앱 요청을 직접 중단시키지 않습니다. 알림도 별도의 SQS와 Notification Lambda로 처리합니다.
+주기적인 가격 확인은 사용자 요청과 별도로 주기적으로 진행됩니다. EventBridge가 Scheduler Lambda를 실행하면 확인할 항목이 SQS에 등록되고, Price Worker가 순서대로 처리합니다. 이 구조 덕분에 SerpApi에 일시적인 오류나 지연이 발생해도 앱에서 저장된 알림과 가격 정보를 확인하거나 관리할 수 있습니다. 가격 확인에 실패한 작업은 SQS를 통해 자동으로 다시 시도합니다.
 
 ### 소셜 로그인과 API 인증
 
 ![소셜 로그인과 API 인증 흐름](image/Social_Login%20%26%20API_Authentication%20Flow.png)
 
-1. Android 앱이 Cognito Hosted UI에 Google 또는 Kakao 로그인을 요청합니다.
-2. Cognito가 선택한 소셜 제공자에게 OAuth 인증을 위임합니다.
-3. 인증 성공 후 Cognito가 앱 딥 링크로 authorization code를 전달합니다.
-4. Android 앱이 PKCE 검증과 함께 code를 토큰으로 교환합니다.
-5. 앱이 API 요청의 `Authorization` 헤더에 JWT를 포함합니다.
-6. API Gateway JWT Authorizer가 issuer, audience, 서명을 검증합니다.
-7. 검증된 요청만 API Lambda로 전달되며 JWT의 사용자 식별자로 데이터 접근 범위를 제한합니다.
+1. Android 앱에서 Google 또는 Kakao 로그인을 선택합니다.
+2. Cognito가 선택한 서비스의 로그인 화면을 열어 사용자 인증을 진행합니다.
+3. 로그인이 완료되면 authorization code(임시 코드)가 Android 앱으로 전달됩니다.
+4. 앱은 인증 코드를 Cognito의 JWT 토큰으로 교환합니다. 이 과정은 PKCE로 보호됩니다.
+5. 앱은 발급받은 JWT를 API 요청에 담아 전송합니다.
+6. API Gateway가 JWT가 유효한지 확인합니다.
+7. 인증된 요청만 API Lambda로 전달되며, Lambda에서는 JWT의 사용자 ID를 이용해서 자신의 데이터에만 접근하도록 제한합니다.
 
-Android 앱에는 client secret을 저장하지 않습니다. Google/Kakao client secret과 SerpApi 키, Firebase Admin 자격 증명은 서버 측에서만 관리합니다.
+Android 앱에는 client secret과 같은 민감한 정보를 저장하지 않습니다. Google과 Kakao의 client secret은 Cognito 연동 설정에서 관리하며, SerpApi 키와 Firebase Admin 자격 증명은 Secrets Manager에 저장해 서버 측에서만 사용합니다.
 
 ### 가격 추적과 모바일 알림
 
 ![가격 추적과 알림 흐름](image/Price_Tracking%20%26%20Notification%20Flow.png)
 
-1. EventBridge가 기본 3시간 간격으로 Scheduler Lambda를 실행합니다.
+1. EventBridge가 3시간 간격으로 Scheduler Lambda를 실행합니다.
 2. Scheduler Lambda가 활성 추적 조건을 Price Check SQS에 넣습니다.
 3. Price Worker가 SerpApi Google Flights에서 현재 가격을 조회합니다.
 4. 조회 가격과 가격 이력을 DynamoDB에 저장합니다.
 5. 목표 가격 도달, 최초 하락률 도달 또는 직전 알림 이후 추가 하락 여부를 평가합니다.
 6. 알림이 필요하면 Notification SQS에 메시지를 발행합니다.
-7. Notification Lambda가 기기 토큰과 Firebase 자격 증명을 읽어 FCM 푸시를 전송합니다.
+7. Notification Lambda가 SQS에서 알림 정보를 받고, DynamoDB에서 사용자의 기기 토큰을 조회합니다. 이후 Secrets Manager의 Firebase 자격 증명을 사용해 FCM 푸시 알림을 전송합니다.
 8. 사용자가 알림을 누르면 Android 앱의 내 가격 추적 화면으로 이동합니다.
 
-목표 가격 알림은 조건을 처음 충족했을 때 한 번 전송합니다. 하락률 알림은 기준 하락률을 처음 충족했을 때 전송하고, 이후 조회에서 가격이 더 내려가면 다시 전송합니다. 알림 조건을 충족하지 않은 조회도 그래프를 위해 가격 이력에는 저장합니다.
+목표 가격 알림은 설정한 가격에 처음 도달했을 때 전송합니다. 하락률 알림은 설정한 하락률에 처음 도달했을 때 전송하며, 이후 가격이 직전 조회보다 더 내려가면 다시 알려줍니다. 알림 조건을 충족하지 않더라도 조회된 가격은 이력에 저장되며, 이를 그래프로 확인할 수 있습니다.
 
 ### 데이터와 보안
 
@@ -67,21 +67,25 @@ Secrets Manager에는 다음 런타임 비밀값을 저장합니다.
 - `faretrack-dev/serpapi`: SerpApi API 키
 - `faretrack-dev/firebase`: Firebase Admin 서비스 계정 JSON
 
-Lambda 실행 역할은 필요한 DynamoDB 테이블, SQS 큐, secret에만 접근하도록 분리합니다. Terraform state, `.env`, Firebase JSON, Android 서명 키는 Git에 포함하지 않습니다.
+각 Lambda 실행 역할은 필요한 DynamoDB 테이블, SQS 큐, secret에만 접근하도록 분리합니다. Terraform state, `.env`, Firebase JSON, Android 서명 키는 Git에 포함하지 않습니다.
 
 ### CI/CD
 
 ![Faretrack CI/CD](image/architecture_CICD.png)
 
-Pull Request와 `main` 브랜치 push에서 GitHub Actions가 Node.js 테스트, Lambda 패키지 빌드, Terraform 형식 검사와 구문 검증을 수행합니다. 개발 환경 배포는 `workflow_dispatch`로 명시적으로 실행합니다.
+Pull Request를 생성하거나 `main` 브랜치에 코드를 push하면 CI workflow가 자동으로 실행됩니다. CI에서는 Node.js 의존성을 설치하고 테스트를 실행한 뒤, Lambda 배포 패키지가 정상적으로 생성되는지 확인합니다. 애플리케이션과 Bootstrap의 Terraform 코드에 대해서도 형식 검사와 구문 검증을 수행합니다.
 
-배포 workflow는 장기 AWS access key 대신 GitHub OIDC로 AWS 배포 역할을 인수해 임시 자격 증명을 얻습니다. 이후 원격 S3 state를 사용하는 Terraform plan과 apply를 실행합니다.
+개발 환경 배포는 GitHub Actions에서 `workflow_dispatch`를 통해 직접 실행합니다. 배포 전 테스트와 Lambda 패키지 빌드를 다시 진행하고, 통과하면 Terraform으로 변경 사항을 확인한 후 AWS 리소스에 적용합니다. 동시에 여러 배포가 실행되지 않도록 배포 workflow의 동시 실행도 제한합니다.
+
+AWS 인증에는 GitHub OIDC를 사용합니다. GitHub Actions가 AWS 배포 역할을 인수해 작업 중에만 유효한 임시 자격 증명을 발급받으며, Terraform state는 S3에 저장해 관리합니다. 배포에 필요한 로그인 및 모니터링 설정값은 GitHub의 개발 환경 secret과 variable을 통해 전달합니다.
 
 ### 모니터링과 비용
 
-Lambda 로그는 CloudWatch Logs에 저장됩니다. CloudWatch 경보는 SNS 모니터링 토픽으로 전달되며 AWS Budgets는 월별 비용을 감시합니다. 개발 환경의 기본 예산은 월 10 USD입니다.
+각 Lambda의 실행 로그는 CloudWatch Logs에 저장합니다. Lambda에서 오류나 처리 제한이 발생하거나 API Gateway가 5xx 오류를 반환하면 CloudWatch 경보가 이를 감지합니다.
 
-추적 스케줄은 비용과 SerpApi 사용량을 통제하기 위해 기본적으로 비활성화되어 있습니다. 실제 주기 추적이 필요할 때만 `price_tracking_enabled = true`로 적용합니다.
+가격 확인 및 알림 메시지가 SQS에 15분 이상 머물거나, 반복적으로 실패한 작업이 DLQ에 들어간 경우에도 경보가 발생합니다. EventBridge의 Scheduler Lambda 호출 실패와 DynamoDB 요청 제한도 함께 감시합니다. 발생한 경보는 SNS를 통해 설정된 이메일 주소로 전달됩니다.
+
+AWS Budgets를 이용해 월별 AWS 비용도 확인합니다. 개발 환경의 기본 예산은 월 10 USD으로 설정하였고, 실제 사용 비용이 예산의 80%와 100%를 넘으면 이메일 알림을 전송합니다.
 
 ## 사용 기술
 
@@ -113,7 +117,7 @@ Lambda 로그는 CloudWatch Logs에 저장됩니다. CloudWatch 경보는 SNS �
 
 ## API
 
-`/api/health`를 제외한 모든 API는 `Authorization: Bearer <JWT>` 헤더가 필요합니다.
+`/api/health`를 제외한 모든 API는 `Authorization: Bearer JWT` 헤더가 필요합니다.
 
 | Method | Endpoint | 설명 |
 |---|---|---|
@@ -168,7 +172,7 @@ APK는 `android/app/build/outputs/apk/debug/app-debug.apk`에 생성됩니다.
 
 ## AWS 배포
 
-### 최초 배포
+### 로컬 배포
 
 #### 1. Bootstrap
 
@@ -206,9 +210,9 @@ cd /mnt/d/Lowest_airfare
 bash infra/scripts/deploy-dev.sh
 ```
 
-승인 질문 없이 적용하려면 `AUTO_APPROVE=true bash infra/scripts/deploy-dev.sh`를 사용합니다.
+백엔드 코드나 Terraform 설정을 변경한 경우에도 같은 스크립트를 다시 실행하면 변경된 항목만 반영됩니다.
 
-최초 배포가 끝나면 생성된 `android/faretrack.local.properties`를 포함해 APK를 빌드하고 설치합니다. Google과 Kakao 개발자 콘솔에는 Terraform output의 `social_provider_callback_url`을 callback URI로 등록합니다.
+최초 배포가 끝나면 생성된 `android/faretrack.local.properties`를 포함해 APK를 빌드하고 설치합니다. Google과 Kakao 개발자 콘솔에는 Terraform output에서 나온 `social_provider_callback_url`을 callback URI로 등록합니다.
 
 #### 4. 배포 확인
 
@@ -218,69 +222,29 @@ terraform output
 curl "$(terraform output -raw api_base_url)/api/health"
 ```
 
-### 재배포
-
-인프라가 배포된 상태에서 백엔드 코드나 Terraform 설정을 변경했을 때는 Bootstrap을 다시 실행하지 않고 동일한 스크립트만 실행합니다. Terraform이 원격 state와 현재 AWS 리소스를 비교해 변경된 항목만 갱신하고, Lambda ZIP과 Secrets Manager 값도 새 버전으로 등록합니다.
-
-```bash
-cd /mnt/d/Lowest_airfare
-bash infra/scripts/deploy-dev.sh
-```
-
-재배포 후 API 상태를 확인합니다.
-
-```bash
-cd infra/terraform
-curl "$(terraform output -raw api_base_url)/api/health"
-```
-
-`terraform destroy`로 애플리케이션 리소스를 삭제한 뒤에도 Bootstrap의 S3 state 버킷을 유지했다면 같은 재배포 명령으로 리소스를 다시 생성할 수 있습니다. 이 경우 API Gateway URL이나 Cognito app client ID가 변경될 수 있으므로 Android 설정이 새 output으로 갱신됐는지 확인하고 APK를 다시 빌드해 설치해야 합니다.
-
 ### GitHub Actions 배포
 
-GitHub의 Actions에서 개발 환경 배포 workflow를 수동 실행합니다. Repository Variable `AWS_DEPLOY_ROLE_ARN`, Google/Kakao OAuth secret, SES 발신 이메일과 모니터링 이메일 변수가 필요합니다.
-
-GitHub Actions의 Terraform 배포와 Secrets Manager의 실제 SerpApi/Firebase 값 갱신은 별도입니다. 런타임 secret까지 한 번에 등록하려면 로컬 `deploy-dev.sh`를 사용합니다.
-
-### 배포 중단
-
-```bash
-cd /mnt/d/Lowest_airfare/infra/terraform
-terraform init -reconfigure -backend-config="environments/dev.backend.hcl"
-terraform destroy -var-file="environments/dev.tfvars"
-```
-
-Bootstrap의 state 버킷과 GitHub OIDC 역할은 다음 재배포에 사용할 수 있으므로 일반적인 개발 환경 중단 시 유지합니다.
+GitHub Actions에서 개발 환경 배포 workflow를 수동으로 실행할 수 있습니다. GitHub Actions는 Terraform을 이용한 AWS 리소스 배포를 담당하며, SerpApi 키와 Firebase 자격 증명 등록은 로컬 deploy-dev.sh를 통해 별도로 진행합니다.
 
 ## Troubleshooting
 
-### Lambda ZIP 생성 실패
+### 재배포 후 Cognito 로그인 실패
 
-`buildLambda.sh` 실행 중 WSL에 `zip`이 설치되어 있지 않아 Lambda 패키지 생성이 실패했습니다. `zip` 패키지를 설치한 뒤 스크립트를 다시 실행해 `backend/dist`에 배포 ZIP을 정상적으로 생성했습니다.
+AWS 인프라를 다시 배포한 뒤 Cognito 도메인과 app client ID가 변경되면서, 기존 값이 들어 있던 APK에서 로그인 화면이 열리지 않는 문제가 발생했습니다. 배포 스크립트가 Terraform output을 `android/faretrack.local.properties`에 자동으로 반영하도록 수정하고 APK를 다시 빌드해 해결했습니다.
 
-### WSL에서 Android APK 빌드 실패
+### 푸시 알림이 전송되지 않는 문제
 
-WSL에서 Windows용 Android SDK를 사용하면서 SDK 경로와 `aapt` 오류가 발생했습니다. Android Studio에서 SDK와 Build Tools를 확인한 뒤 Windows PowerShell에서 `gradlew.bat assembleDebug`를 실행해 debug APK를 정상적으로 생성했습니다.
+가격 알림 조건을 충족했지만 Android 앱에 푸시 알림이 도착하지 않았습니다. 확인 결과 Secrets Manager에 Firebase 자격 증명의 실제 값이 등록되지 않아 Notification Lambda가 FCM을 호출하지 못하고 있었습니다. 배포 과정에서 deploy-dev.sh가 Firebase 자격 증명을 Secrets Manager에 등록하도록 수정해 해결했습니다.
 
-### Secrets Manager의 secret 값 누락
+### 가격 알림이 반복해서 전송되는 문제
 
-Terraform이 secret 컨테이너만 생성해 SerpApi와 Firebase 값에 `AWSCURRENT`가 없었고 가격 검색이 실패했습니다. `.env`와 Firebase 서비스 계정 JSON을 준비해 `deploy-dev.sh`를 다시 실행했으며, 실제 secret 값이 등록되어 Lambda가 자격 증명을 정상적으로 읽었습니다.
-
-### Cognito 로그인 도메인 연결 실패
-
-인프라를 삭제하고 다시 배포한 뒤 APK가 이전 Cognito 도메인과 client ID를 참조해 로그인 페이지가 열리지 않았습니다. 새 Terraform output으로 Android 설정과 소셜 로그인 callback URI를 갱신하고 APK를 다시 빌드해 로그인이 정상적으로 완료되도록 수정했습니다.
-
-### Firebase 푸시 알림 전송 실패와 중복 알림
-
-Firebase 서비스 계정 JSON 형식이 Lambda가 기대한 구조와 달라 푸시 전송이 실패했고, 이를 수정한 뒤에는 이전 알림 상태가 구분되지 않아 같은 알림이 반복됐습니다. CloudWatch 로그를 기준으로 JSON 파싱을 수정하고 DynamoDB에 목표 도달 상태와 직전 알림 가격을 저장해 최초 도달 또는 추가 하락 시에만 알림이 전송되도록 해결했습니다.
+가격을 주기적으로 확인할 때 이미 보낸 알림이 반복해서 전송되는 문제가 있었습니다. 알림 전송 여부와 마지막 알림 가격을 DynamoDB에 저장해, 목표 가격이나 설정한 하락률에 처음 도달했을 때만 알림을 보내도록 수정했습니다. 이후 가격이 더 내려간 경우에는 새로운 알림을 전송합니다.
 
 ## 현재 제약 사항
 
-- 결과와 판매처 범위는 SerpApi Google Flights 데이터에 의존하므로 네이버 항공권과 결과 수 또는 가격이 다를 수 있습니다.
-- 오는 편과 판매처 조회에는 SerpApi token이 필요하며 조합에 따라 추가 요청이 발생합니다.
-- 최근 30일 그래프는 공급자가 과거 정보를 제공하거나 Faretrack이 직접 수집한 이력이 있을 때만 완전하게 표시됩니다.
-- SerpApi 사용량과 요금제 한도를 별도로 관리해야 합니다.
-- SES fallback은 검증된 주소 또는 SES production access가 필요합니다.
-- Google/Kakao 콘솔의 client 정보와 Cognito callback URI가 정확히 일치해야 합니다.
-- 개발 환경의 주기 가격 추적은 비용 방지를 위해 기본적으로 꺼져 있습니다.
-- 현재 산출물은 debug APK이며 Play Store용 서명과 release 설정은 별도로 구성해야 합니다.
+## 현재 제약 사항
+
+- 항공편 검색 결과는 SerpApi Google Flights 데이터에 의존하므로 네이버 항공권 등 다른 서비스와 결과 수, 가격 및 판매처가 다를 수 있습니다.
+- 왕복 항공편과 판매처를 조회할 때 여러 번의 SerpApi 요청이 발생할 수 있어 요금제의 API 사용량에 따라 검색 횟수가 제한됩니다.
+- 최근 30일 가격 그래프는 SerpApi가 제공하는 과거 데이터와 Faretrack이 수집한 이력을 사용합니다. 수집된 이력이 부족하면 일부 기간의 가격이 표시되지 않을 수 있습니다.
+- 이메일 대체 알림은 Google 로그인 사용자에게만 제한적으로 제공됩니다. 현재 Kakao 로그인에서는 이메일 정보를 가져오지 않으며, SES 샌드박스 환경에서는 Google 사용자도 AWS에서 별도로 인증한 이메일 주소로만 알림을 받을 수 있습니다.
