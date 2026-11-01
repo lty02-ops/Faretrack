@@ -127,27 +127,27 @@ GitHub Actions에서 개발 환경 배포 workflow를 수동으로 실행할 수
 
 ### 재배포 후 Cognito 로그인 실패
 
-| 구분 | 내용 |
+| &nbsp;구&#8288;분&nbsp; | 내용 |
 |---|---|
-| 문제 | AWS 인프라를 다시 배포한 뒤 기존 APK에서 로그인 화면이 열리지 않았습니다. |
-| 원인 | 변경된 Cognito 도메인과 app client ID가 APK에 반영되지 않았습니다. |
-| 해결 | 배포 스크립트가 Terraform output을 `android/faretrack.local.properties`에 자동 반영하도록 수정하고 APK를 다시 빌드했습니다. |
+| &nbsp;문&#8288;제&nbsp; | AWS 인프라를 다시 배포한 뒤 기존 APK에서 로그인 화면이 열리지 않았습니다. |
+| &nbsp;원&#8288;인&nbsp; | 변경된 Cognito 도메인과 app client ID가 APK에 반영되지 않았습니다. |
+| &nbsp;해&#8288;결&nbsp; | 배포 스크립트가 Terraform output을 `android/faretrack.local.properties`에 자동 반영하도록 수정하고 APK를 다시 빌드했습니다. |
 
 ### 푸시 알림 미수신
 
-| 구분 | 내용 |
+| &nbsp;구&#8288;분&nbsp; | 내용 |
 |---|---|
-| 문제 | 가격 알림 조건을 충족했지만 Android 앱에 푸시 알림이 도착하지 않았습니다. |
-| 원인 | Secrets Manager에 Firebase 자격 증명의 실제 값이 등록되지 않아 Notification Lambda가 FCM을 호출하지 못했습니다. |
-| 해결 | `deploy-dev.sh`에서 Firebase 자격 증명을 Secrets Manager에 등록하도록 배포 과정을 수정했습니다. |
+| &nbsp;문&#8288;제&nbsp; | 가격 알림 조건을 충족했지만 Android 앱에 푸시 알림이 도착하지 않았습니다. |
+| &nbsp;원&#8288;인&nbsp; | Secrets Manager에 Firebase 자격 증명의 실제 값이 등록되지 않아 Notification Lambda가 FCM을 호출하지 못했습니다. |
+| &nbsp;해&#8288;결&nbsp; | `deploy-dev.sh`에서 Firebase 자격 증명을 Secrets Manager에 등록하도록 배포 과정을 수정했습니다. |
 
 ### 가격 알림 중복 전송
 
-| 구분 | 내용 |
+| &nbsp;구&#8288;분&nbsp; | 내용 |
 |---|---|
-| 문제 | 주기적인 가격 확인 시 이미 보낸 알림이 반복해서 전송되었습니다. |
-| 원인 | 이전 알림 전송 여부와 가격을 기준으로 중복 알림을 구분할 필요가 있었습니다. |
-| 해결 | 알림 상태와 마지막 알림 가격을 DynamoDB에 저장해 최초 조건 도달 시 알림을 보내고, 이후 추가 하락 시 다시 알리도록 수정했습니다. |
+| &nbsp;문&#8288;제&nbsp; | 주기적인 가격 확인 시 이미 보낸 알림이 반복해서 전송되었습니다. |
+| &nbsp;원&#8288;인&nbsp; | 이전 알림 전송 여부와 가격을 기준으로 중복 알림을 구분할 필요가 있었습니다. |
+| &nbsp;해&#8288;결&nbsp; | 알림 상태와 마지막 알림 가격을 DynamoDB에 저장해 최초 조건 도달 시 알림을 보내고, 이후 추가 하락 시 다시 알리도록 수정했습니다. |
 
 ## 배운 점
 
