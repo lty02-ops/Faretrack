@@ -49,7 +49,7 @@ Android 앱에서 API Gateway로 요청을 전달하면 API Lambda가 항공편 
 
 ### CI/CD
 
-![Faretrack CI/CD Pipeline](image/architecture_cicd.png)
+![Faretrack CI/CD Pipeline](image/architecture_CICD.png)
 
 **CI** - `main` 브랜치에 코드가 push되거나 Pull Request가 생성되면 Node.js 테스트와 Lambda 배포 패키지 빌드를 실행합니다. Terraform 코드의 형식 검사와 구성 검증을 진행해 배포 전 오류를 확인합니다.
 
