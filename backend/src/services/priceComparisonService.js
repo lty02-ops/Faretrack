@@ -6,7 +6,8 @@ class PriceComparisonService {
     const previousPrice = prior.at(-1)?.price;
     const baselinePrice = Number(alert.baselinePrice || history[0]?.price || 0);
     const dropRate = calculateDropRate(baselinePrice, current.price);
-    const thresholdReached = baselinePrice > 0 && dropRate >= (alert.dropRatePercent || 10);
+    const threshold = Number(alert.dropRatePercent ?? 10);
+    const thresholdReached = threshold > 0 && baselinePrice > 0 && dropRate >= threshold;
     const reasons = [];
 
     const targetReachedNow = !alert.targetReachedNotified

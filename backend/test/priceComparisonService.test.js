@@ -4,6 +4,40 @@ const { PriceComparisonService } = require('../src/services/priceComparisonServi
 
 const service = new PriceComparisonService();
 
+test('custom percentage alerts trigger only at the chosen threshold', () => {
+  for (const [price, shouldNotify] of [[187000, false], [186000, true]]) {
+    const result = service.compare(
+      { id: 'p2', price },
+      [{ id: 'p1', price: 200000 }, { id: 'p2', price }],
+      { targetPrice: 100000, baselinePrice: 200000, dropRatePercent: 7 }
+    );
+    assert.equal(result.shouldNotify, shouldNotify);
+    assert.deepEqual(result.reasons, shouldNotify ? ['PRICE_DROP'] : []);
+  }
+});
+
+test('disabled percentage alerts still notify when the target is reached', () => {
+  const result = service.compare(
+    { id: 'p2', price: 140000 },
+    [{ id: 'p1', price: 200000 }, { id: 'p2', price: 140000 }],
+    { targetPrice: 150000, baselinePrice: 200000, dropRatePercent: 0 }
+  );
+  assert.deepEqual(result.reasons, ['TARGET_REACHED']);
+  assert.equal(result.alertPatch.percentageDropTriggered, false);
+});
+
+test('disabled percentage alerts suppress initial and continued drops', () => {
+  for (const percentageDropTriggered of [false, true]) {
+    const result = service.compare(
+      { id: 'p3', price: 140000 },
+      [{ id: 'p1', price: 200000 }, { id: 'p2', price: 160000 }, { id: 'p3', price: 140000 }],
+      { targetPrice: 100000, baselinePrice: 200000, dropRatePercent: 0, percentageDropTriggered }
+    );
+    assert.equal(result.shouldNotify, false);
+    assert.deepEqual(result.reasons, []);
+  }
+});
+
 test('목표 가격에 최초 도달하면 알린다', () => {
   const result = service.compare(
     { id: 'p2', price: 149000 },

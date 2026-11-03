@@ -37,9 +37,9 @@ class PriceHistoryChart(
     private val lastTimestamp = points.mapNotNull(Point::timestamp).maxOrNull()
     private val numberFormat = NumberFormat.getNumberInstance(Locale.KOREA)
     private var selectedIndex: Int? = null
-    private val teal = Color.rgb(8, 127, 118)
+    private val teal = Color.rgb(25, 108, 250)
     private val red = Color.rgb(190, 55, 45)
-    private val grid = Color.rgb(220, 224, 226)
+    private val grid = Color.rgb(230, 236, 247)
     private val muted = Color.rgb(102, 113, 125)
     private val ink = Color.rgb(23, 33, 43)
     private val linePaint = Paint(Paint.ANTI_ALIAS_FLAG).apply {

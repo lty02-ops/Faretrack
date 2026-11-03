@@ -1,6 +1,7 @@
 package com.faretrack.app
 
 import android.Manifest
+import android.animation.ValueAnimator
 import android.app.Activity
 import android.app.AlertDialog
 import android.app.DatePickerDialog
@@ -33,12 +34,14 @@ class MainActivity : Activity() {
     private var lastSearchResponse: JSONObject? = null
     private var lastResultsPage = 0
     private var showingFlightDetails = false
+    private var watchesTab = false
+    private var loginBackgroundAnimator: ValueAnimator? = null
     private var detailRequestVersion = 0
     private val conditionSearchHistory = ArrayDeque<SearchSnapshot>()
-    private val teal = Color.rgb(8, 127, 118)
-    private val ink = Color.rgb(23, 33, 43)
-    private val muted = Color.rgb(102, 113, 125)
-    private val paper = Color.rgb(245, 246, 244)
+    private val teal = Color.rgb(25, 108, 250)
+    private val ink = Color.rgb(30, 38, 54)
+    private val muted = Color.rgb(116, 129, 150)
+    private val paper = Color.rgb(245, 248, 254)
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
@@ -74,9 +77,21 @@ class MainActivity : Activity() {
     }
 
     override fun onDestroy() {
+        loginBackgroundAnimator?.cancel()
+        loginBackgroundAnimator = null
         executor.shutdownNow()
         auth.close()
         super.onDestroy()
+    }
+
+    override fun onPause() {
+        loginBackgroundAnimator?.pause()
+        super.onPause()
+    }
+
+    override fun onResume() {
+        super.onResume()
+        loginBackgroundAnimator?.let { if (it.isPaused) it.resume() }
     }
 
     @Deprecated("Handled explicitly for the single-activity screen stack")
@@ -102,14 +117,53 @@ class MainActivity : Activity() {
     }
 
     private fun showLogin() {
-        val root = column().apply {
-            setPadding(dp(24), dp(48), dp(24), dp(24))
-            setBackgroundColor(paper)
-            gravity = Gravity.CENTER_VERTICAL
+        loginBackgroundAnimator?.cancel()
+        loginBackgroundAnimator = null
+        window.statusBarColor = Color.TRANSPARENT
+        window.navigationBarColor = Color.TRANSPARENT
+        window.decorView.systemUiVisibility = View.SYSTEM_UI_FLAG_LAYOUT_STABLE or
+            View.SYSTEM_UI_FLAG_LAYOUT_FULLSCREEN or View.SYSTEM_UI_FLAG_LAYOUT_HIDE_NAVIGATION
+        val background = FrameLayout(this)
+        val sky = ImageView(this).apply {
+            setImageResource(R.drawable.login_sky)
+            scaleType = ImageView.ScaleType.CENTER_CROP
+            importantForAccessibility = View.IMPORTANT_FOR_ACCESSIBILITY_NO
+            scaleX = 1.12f
+            scaleY = 1.12f
         }
-        root.addView(label("Faretrack", 32, ink, true))
-        root.addView(space(10))
-        root.addView(label("Google 또는 Kakao로 로그인하세요.", 16, muted))
+        background.clipChildren = true
+        background.addView(sky, FrameLayout.LayoutParams(-1, -1))
+        if (ValueAnimator.areAnimatorsEnabled()) {
+            loginBackgroundAnimator = ValueAnimator.ofFloat(0f, 1f).apply {
+                duration = 10_000L
+                repeatCount = ValueAnimator.INFINITE
+                repeatMode = ValueAnimator.REVERSE
+                interpolator = android.view.animation.AccelerateDecelerateInterpolator()
+                addUpdateListener { animation ->
+                    val progress = animation.animatedValue as Float
+                    val scale = 1.12f + 0.06f * progress
+                    sky.scaleX = scale
+                    sky.scaleY = scale
+                    sky.translationX = sky.width * (progress - 0.5f) * 0.07f
+                    sky.translationY = sky.height * (progress - 0.5f) * 0.025f
+                }
+                start()
+            }
+        }
+        background.addView(View(this).apply {
+            this.background = GradientDrawable(GradientDrawable.Orientation.TOP_BOTTOM,
+                intArrayOf(Color.argb(65, 5, 20, 42), Color.argb(5, 5, 20, 42), Color.argb(220, 5, 20, 42)))
+        }, FrameLayout.LayoutParams(-1, -1))
+        val root = column().apply {
+            setPadding(dp(28), dp(64), dp(28), dp(40))
+        }
+        root.addView(label("Faretrack", 44, Color.WHITE, true))
+        root.addView(space(8))
+        root.addView(label("FIND YOUR NEXT ESCAPE", 11, Color.WHITE, true).apply { letterSpacing = 0.16f })
+        root.addView(Space(this), LinearLayout.LayoutParams(1, dp(120), 1f))
+        root.addView(label("더 좋은 가격으로,\n더 멀리 떠나요.", 30, Color.WHITE, true))
+        root.addView(space(12))
+        root.addView(label("Google 또는 Kakao로 여행을 시작하세요.", 14, Color.rgb(225, 235, 247)))
         root.addView(space(28))
         val googleLogin = socialLoginButton("G", "Google로 시작하기", Color.rgb(26, 115, 232), Color.WHITE, Color.rgb(210, 214, 220))
         googleLogin.setOnClickListener {
@@ -123,27 +177,28 @@ class MainActivity : Activity() {
         }
         root.addView(kakaoLogin, LinearLayout.LayoutParams(-1, dp(64)))
 
-        if (BuildConfig.DEBUG) {
-            root.addView(space(18))
-            val developmentLogin = action("Continue in development mode", teal, Color.TRANSPARENT)
-            developmentLogin.setOnClickListener {
-                auth.loginForDevelopment()
-                showSearch()
-            }
-            root.addView(developmentLogin, LinearLayout.LayoutParams(-1, dp(52)))
-        }
-        setContentView(root)
+        background.addView(ScrollView(this).apply {
+            isFillViewport = true
+            isVerticalScrollBarEnabled = false
+            addView(root)
+        }, FrameLayout.LayoutParams(-1, -1))
+        setContentView(background)
     }
 
     private fun shell() {
+        loginBackgroundAnimator?.cancel()
+        loginBackgroundAnimator = null
+        window.statusBarColor = paper
+        window.navigationBarColor = paper
+        window.decorView.systemUiVisibility = View.SYSTEM_UI_FLAG_LIGHT_STATUS_BAR or View.SYSTEM_UI_FLAG_LIGHT_NAVIGATION_BAR
         showingFlightDetails = false
         val root = column().apply { setBackgroundColor(paper) }
         val header = row().apply {
             setPadding(dp(20), dp(14), dp(14), dp(12))
-            setBackgroundColor(ink)
+            setBackgroundColor(paper)
         }
-        header.addView(label("F  Faretrack", 22, Color.WHITE, true), LinearLayout.LayoutParams(0, dp(48), 1f))
-        header.addView(action("Logout", Color.WHITE, Color.TRANSPARENT).apply {
+        header.addView(label("Faretrack", 24, ink, true), LinearLayout.LayoutParams(0, dp(48), 1f))
+        header.addView(action("로그아웃", muted, Color.TRANSPARENT).apply {
             setOnClickListener {
                 val cognitoLogout = auth.logoutIntent()
                 showLogin()
@@ -152,24 +207,30 @@ class MainActivity : Activity() {
         })
         root.addView(header)
 
-        content = column().apply { setPadding(dp(18), dp(24), dp(18), dp(100)) }
-        root.addView(ScrollView(this).apply { addView(content) }, LinearLayout.LayoutParams(-1, 0, 1f))
+        content = column().apply { setPadding(dp(22), dp(12), dp(22), dp(28)) }
+        root.addView(ScrollView(this).apply { isVerticalScrollBarEnabled = false; addView(content) }, LinearLayout.LayoutParams(-1, 0, 1f))
 
         val navigation = row().apply {
             gravity = Gravity.CENTER
-            setPadding(dp(10), dp(8), dp(10), dp(8))
-            setBackgroundColor(Color.WHITE)
+            setPadding(dp(12), dp(10), dp(12), dp(10))
+            background = rounded(Color.WHITE, 26)
+            elevation = dp(8).toFloat()
         }
-        navigation.addView(action("항공권 검색", Color.WHITE, teal).apply { setOnClickListener { showSearch() } }, LinearLayout.LayoutParams(0, dp(52), 1f))
-        navigation.addView(action("내 가격 추적", ink, Color.TRANSPARENT).apply { setOnClickListener { showWatches() } }, LinearLayout.LayoutParams(0, dp(52), 1f))
-        root.addView(navigation)
+        navigation.addView(action("✈  항공권 검색", if (watchesTab) muted else teal, if (watchesTab) Color.TRANSPARENT else Color.rgb(234, 242, 255)).apply { setOnClickListener { showSearch() } }, LinearLayout.LayoutParams(0, dp(52), 1f))
+        navigation.addView(action("♡  내 가격 추적", if (watchesTab) teal else muted, if (watchesTab) Color.rgb(234, 242, 255) else Color.TRANSPARENT).apply { setOnClickListener { showWatches() } }, LinearLayout.LayoutParams(0, dp(52), 1f))
+        root.addView(navigation, LinearLayout.LayoutParams(-1, -2).apply { setMargins(dp(16), dp(4), dp(16), dp(12)) })
         setContentView(root)
     }
 
     private fun showSearch() {
         conditionSearchHistory.clear()
+        watchesTab = false
         shell()
-        content.addView(label("가격의 흐름을 보고,\n떠날 순간을 정하세요.", 30, ink, true))
+        content.addView(label("Explore your next journey", 12, teal, true))
+        content.addView(space(6))
+        content.addView(label("어디로 떠나볼까요?", 28, ink, true))
+        content.addView(space(18))
+        content.addView(travelBanner("설레는 여행의 시작", "떠나고 싶은 곳, 원하는 가격으로"))
         content.addView(space(10))
         content.addView(label("검색 조건을 저장하면 최근 확인 가격을 추적하고 원하는 순간에 알려드립니다.", 14, muted))
         content.addView(space(24))
@@ -183,13 +244,11 @@ class MainActivity : Activity() {
         val returnDate = input("귀국일", LocalDate.now().plusDays(49).toString()).apply { isFocusable = false }
         departure.setOnClickListener { pickDate(departure) }
         returnDate.setOnClickListener { pickDate(returnDate) }
-        content.addView(field("출발일", departure))
-        content.addView(field("귀국일", returnDate))
+        content.addView(fieldPair(field("출발일", departure), field("귀국일", returnDate)))
 
         val trip = spinner(listOf("왕복", "편도"))
         val passengers = spinner(listOf("성인 1명", "성인 2명", "성인 3명", "성인 4명"))
-        content.addView(field("여정", trip))
-        content.addView(field("인원", passengers))
+        content.addView(fieldPair(field("여정", trip), field("인원", passengers)))
 
         val submit = action("현재 가격 검색", Color.WHITE, teal)
         submit.setOnClickListener {
@@ -278,7 +337,7 @@ class MainActivity : Activity() {
         if (history.length() == 0) {
             content.addView(column().apply {
                 setPadding(dp(16), dp(14), dp(16), dp(14))
-                setBackgroundColor(Color.WHITE)
+                background = rounded(Color.WHITE, 22)
                 addView(label("최근 30일 시장 가격 추세", 17, ink, true))
                 addView(label("이 검색 조건은 비교할 과거 가격 데이터가 충분하지 않습니다.", 13, muted))
             }, LinearLayout.LayoutParams(-1, -2).apply { setMargins(0, 0, 0, dp(14)) })
@@ -292,7 +351,7 @@ class MainActivity : Activity() {
         val difference = if (low > 0) ((current - low) * 100.0 / low) else 0.0
         val card = column().apply {
             setPadding(dp(16), dp(16), dp(16), dp(16))
-            setBackgroundColor(Color.WHITE)
+            background = rounded(Color.WHITE, 22)
             addView(label("최근 30일 시장 가격 추세", 18, ink, true))
             addView(label("동일한 노선·일정 조건의 시장 최저가 기준", 12, muted))
             addView(PriceHistoryChart(this@MainActivity, history), LinearLayout.LayoutParams(-1, dp(190)).apply { setMargins(0, dp(8), 0, dp(4)) })
@@ -401,7 +460,7 @@ class MainActivity : Activity() {
     private fun flightCard(flight: JSONObject): View {
         val card = column().apply {
             setPadding(dp(18), dp(18), dp(14), dp(18))
-            setBackgroundColor(Color.WHITE)
+            background = rounded(Color.WHITE, 22)
             isClickable = true
             isFocusable = true
         }
@@ -422,7 +481,7 @@ class MainActivity : Activity() {
         val stops = if (flight.getInt("stops") == 0) "직항" else "경유 ${flight.getInt("stops")}회"
         card.addView(label("${flight.getString("departureTime")}  →  ${flight.getString("arrivalTime")}   ·   $stops", 14, muted))
         card.addView(space(14))
-        card.addView(label(won(flight.getInt("price")), 26, ink, true))
+        card.addView(label(won(flight.getInt("price")), 26, teal, true))
         card.addView(label("항공편 상세 보기", 13, teal, true).apply { gravity = Gravity.END })
         card.setOnClickListener { openFlightDetails(flight) }
         card.layoutParams = LinearLayout.LayoutParams(-1, -2).apply { setMargins(0, 0, 0, dp(12)) }
@@ -542,7 +601,7 @@ class MainActivity : Activity() {
     }
 
     private fun itineraryLeg(title: String, origin: String, destination: String, flight: JSONObject): View {
-        val block = column().apply { setPadding(dp(18), dp(16), dp(18), dp(18)); setBackgroundColor(Color.WHITE) }
+        val block = column().apply { setPadding(dp(18), dp(16), dp(18), dp(18)); background = rounded(Color.WHITE, 22) }
         block.addView(label(title, 14, teal, true))
         block.addView(space(6))
         block.addView(label("$origin  →  $destination", 21, ink, true))
@@ -593,18 +652,44 @@ class MainActivity : Activity() {
         content.addView(label(won(flight.getInt("price")), 30, teal, true))
         content.addView(space(20))
         val target = input("목표 가격", "150000").apply { inputType = InputType.TYPE_CLASS_NUMBER }
-        val drop = spinner(listOf("추가 5% 하락", "추가 10% 하락", "추가 15% 하락")).apply { setSelection(1) }
+        val drop = spinner(listOf("없음", "5% 하락", "10% 하락", "15% 하락", "직접 입력")).apply { setSelection(2) }
+        val customDrop = input("예: 7", "").apply { inputType = InputType.TYPE_CLASS_NUMBER }
+        val customDropField = field("하락률 직접 입력 (1~99%)", customDrop).apply { visibility = View.GONE }
+        drop.onItemSelectedListener = object : AdapterView.OnItemSelectedListener {
+            override fun onItemSelected(parent: AdapterView<*>?, view: View?, position: Int, id: Long) {
+                customDropField.visibility = if (position == 4) View.VISIBLE else View.GONE
+                if (position != 4) customDrop.clearFocus()
+            }
+            override fun onNothingSelected(parent: AdapterView<*>?) = Unit
+        }
         content.addView(field("목표 가격 (원)", target))
-        content.addView(field("목표 도달 후 추가 하락 기준", drop))
+        content.addView(field("등록 가격 대비 하락 알림 기준", drop))
+        content.addView(customDropField)
         val create = action("가격 알림 등록", Color.WHITE, teal)
         create.setOnClickListener {
-            val payload = JSONObject().put("query", query).put("targetPrice", target.text.toString().toInt()).put("baselinePrice", flight.getInt("price")).put("dropRatePercent", listOf(5, 10, 15)[drop.selectedItemPosition])
+            val dropRate = if (drop.selectedItemPosition == 4) {
+                val entered = customDrop.text.toString().trim().toIntOrNull()
+                if (entered == null || entered !in 1..99) {
+                    customDrop.error = "1~99 사이의 정수를 입력하세요. 알림을 끄려면 ‘없음’을 선택하세요."
+                    customDrop.requestFocus()
+                    return@setOnClickListener
+                }
+                entered
+            } else listOf(0, 5, 10, 15)[drop.selectedItemPosition]
+            val targetPrice = target.text.toString().trim().toIntOrNull()
+            if (targetPrice == null || targetPrice <= 0) {
+                target.error = "목표 가격을 0보다 큰 정수로 입력하세요."
+                target.requestFocus()
+                return@setOnClickListener
+            }
+            val payload = JSONObject().put("query", query).put("targetPrice", targetPrice).put("baselinePrice", flight.getInt("price")).put("dropRatePercent", dropRate)
             runTask(create, "등록 중...", { api.createAlert(payload) }) { toast("가격 알림을 등록했습니다."); showWatches() }
         }
         content.addView(create, LinearLayout.LayoutParams(-1, dp(58)))
     }
 
     private fun showWatches() {
+        watchesTab = true
         shell()
         content.addView(label("내 가격 추적", 30, ink, true))
         val refresh = action("지금 가격 확인", Color.WHITE, teal)
@@ -622,7 +707,7 @@ class MainActivity : Activity() {
             val history = item.getJSONArray("history")
             val current = if (history.length() > 0) won(history.getJSONObject(history.length() - 1).getInt("price")) else "확인 전"
             val id = item.getString("id")
-            val card = column().apply { setPadding(dp(16), dp(16), dp(16), dp(16)); setBackgroundColor(Color.WHITE) }
+            val card = column().apply { setPadding(dp(16), dp(16), dp(16), dp(16)); background = rounded(Color.WHITE, 22) }
             val titleRow = row().apply { gravity = Gravity.CENTER_VERTICAL }
             titleRow.addView(
                 label("${query.getString("origin")} → ${query.getString("destination")}", 20, ink, true),
@@ -666,28 +751,89 @@ class MainActivity : Activity() {
         button?.apply { isEnabled = false; text = busy }
         executor.execute {
             runCatching(task).onSuccess { value -> runOnUiThread { button?.apply { isEnabled = true; text = original }; success(value) } }
-                .onFailure { error -> runOnUiThread { button?.apply { isEnabled = true; text = original }; toast("${error.message}\nAPI: ${api.baseUrl}") } }
+                .onFailure { error ->
+                    android.util.Log.e("Faretrack", "API task failed", error)
+                    val message = error.message?.takeIf { it.isNotBlank() && it != "null" }
+                        ?: error.cause?.message?.takeIf { it.isNotBlank() && it != "null" }
+                        ?: "요청을 완료하지 못했습니다 (${error.javaClass.simpleName})."
+                    runOnUiThread {
+                        button?.apply { isEnabled = true; text = original }
+                        AlertDialog.Builder(this)
+                            .setTitle("요청 실패")
+                            .setMessage("$message\n\nAPI: ${api.baseUrl}")
+                            .setPositiveButton("확인", null)
+                            .show()
+                    }
+                }
         }
+    }
+
+    private fun rounded(color: Int, radius: Int) = GradientDrawable().apply {
+        setColor(color)
+        cornerRadius = dp(radius).toFloat()
+    }
+
+    private fun fieldPair(first: View, second: View) = row().apply {
+        addView(first, LinearLayout.LayoutParams(0, -2, 1f).apply { setMargins(0, 0, dp(6), dp(10)) })
+        addView(second, LinearLayout.LayoutParams(0, -2, 1f).apply { setMargins(dp(6), 0, 0, dp(10)) })
+    }
+
+    private fun travelBanner(title: String, subtitle: String, large: Boolean = false): View = FrameLayout(this).apply {
+        background = rounded(Color.rgb(211, 232, 255), 26)
+        clipToOutline = true
+        addView(ImageView(this@MainActivity).apply {
+            setImageResource(R.drawable.travel_landscape)
+            scaleType = ImageView.ScaleType.CENTER_CROP
+            importantForAccessibility = View.IMPORTANT_FOR_ACCESSIBILITY_NO
+        }, FrameLayout.LayoutParams(-1, -1))
+        addView(column().apply {
+            gravity = Gravity.BOTTOM
+            setPadding(dp(22), dp(26), dp(22), dp(24))
+            addView(label("FIND YOUR NEXT ESCAPE", 10, Color.rgb(218, 237, 255), true))
+            addView(space(8))
+            addView(label(title, if (large) 38 else 25, Color.WHITE, true))
+            addView(space(8))
+            addView(label(subtitle, 13, Color.WHITE))
+        }, FrameLayout.LayoutParams(-1, -1))
+        layoutParams = LinearLayout.LayoutParams(-1, dp(if (large) 280 else 180))
     }
 
     private fun column() = LinearLayout(this).apply { orientation = LinearLayout.VERTICAL }
     private fun row() = column().apply { orientation = LinearLayout.HORIZONTAL }
     private fun label(value: String, size: Int, color: Int, bold: Boolean = false) = TextView(this).apply { text = value; textSize = size.toFloat(); setTextColor(color); setLineSpacing(0f, 1.15f); if (bold) setTypeface(null, 1) }
-    private fun input(hintText: String, value: String) = EditText(this).apply { hint = hintText; setText(value); setTextColor(ink); isSingleLine = true; setPadding(0, dp(9), 0, dp(9)) }
+    private fun input(hintText: String, value: String) = EditText(this).apply { hint = hintText; setText(value); setTextColor(ink); setHintTextColor(muted); textSize = 16f; background = null; isSingleLine = true; setPadding(0, dp(9), 0, dp(9)) }
     private fun airportInput(hintText: String, code: String) = AutoCompleteTextView(this).apply {
         hint = hintText
         setText(AIRPORTS.firstOrNull { it.endsWith("($code)") } ?: code, false)
         setTextColor(ink)
         isSingleLine = true
         threshold = 0
+        textSize = 16f
+        background = null
+        setHintTextColor(muted)
+        setDropDownBackgroundDrawable(rounded(Color.WHITE, 16))
         setPadding(0, dp(9), 0, dp(9))
         setAdapter(ArrayAdapter(this@MainActivity, android.R.layout.simple_dropdown_item_1line, AIRPORTS))
         setOnClickListener { showDropDown() }
         setOnFocusChangeListener { _, focused -> if (focused) showDropDown() }
     }
     private fun spinner(values: List<String>) = Spinner(this).apply { adapter = ArrayAdapter(this@MainActivity, android.R.layout.simple_spinner_dropdown_item, values) }
-    private fun field(title: String, input: View) = column().apply { setPadding(dp(14), dp(10), dp(14), dp(10)); setBackgroundColor(Color.WHITE); addView(label(title, 12, muted, true)); addView(input, LinearLayout.LayoutParams(-1, dp(52))); layoutParams = LinearLayout.LayoutParams(-1, -2).apply { setMargins(0, 0, 0, dp(10)) } }
-    private fun action(value: String, color: Int, background: Int) = Button(this).apply { text = value; setTextColor(color); setBackgroundColor(background); isAllCaps = false }
+    private fun field(title: String, input: View) = column().apply { setPadding(dp(18), dp(12), dp(18), dp(8)); background = rounded(Color.WHITE, 20); elevation = dp(1).toFloat(); addView(label(title, 12, muted, true)); addView(input, LinearLayout.LayoutParams(-1, dp(52))); layoutParams = LinearLayout.LayoutParams(-1, -2).apply { setMargins(0, 0, 0, dp(10)) } }
+    private fun action(value: String, color: Int, background: Int) = Button(this).apply {
+        text = value
+        textSize = 14f
+        setTypeface(null, 1)
+        setTextColor(color)
+        isAllCaps = false
+        minWidth = 0
+        minimumWidth = 0
+        setPadding(dp(14), dp(8), dp(14), dp(8))
+        val surface = rounded(background, 16)
+        this.background = android.graphics.drawable.RippleDrawable(
+            android.content.res.ColorStateList.valueOf(Color.argb(30, 25, 108, 250)), surface, rounded(Color.WHITE, 16))
+        stateListAnimator = null
+        elevation = if (background == teal) dp(4).toFloat() else 0f
+    }
     private fun socialLoginButton(icon: String, title: String, foreground: Int, backgroundColor: Int, strokeColor: Int) = row().apply {
         gravity = Gravity.CENTER_VERTICAL
         isClickable = true
@@ -695,7 +841,7 @@ class MainActivity : Activity() {
         contentDescription = title
         background = GradientDrawable().apply {
             shape = GradientDrawable.RECTANGLE
-            cornerRadius = dp(6).toFloat()
+            cornerRadius = dp(18).toFloat()
             setColor(backgroundColor)
             if (strokeColor != Color.TRANSPARENT) setStroke(dp(1), strokeColor)
         }

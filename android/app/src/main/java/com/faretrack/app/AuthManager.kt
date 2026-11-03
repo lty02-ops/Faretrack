@@ -28,15 +28,7 @@ class AuthManager(context: Context) {
         ?: AuthState(configuration)
 
     val isAuthorized: Boolean
-        get() = state.isAuthorized || isDevelopmentAuthorized
-
-    val isDevelopmentAuthorized: Boolean
-        get() = BuildConfig.DEBUG && preferences.getBoolean(DEVELOPMENT_AUTH_KEY, false)
-
-    fun loginForDevelopment() {
-        check(BuildConfig.DEBUG) { "Development login is only available in debug builds." }
-        preferences.edit().putBoolean(DEVELOPMENT_AUTH_KEY, true).apply()
-    }
+        get() = state.isAuthorized
 
     fun authorizationIntent(provider: String): Intent {
         val builder = AuthorizationRequest.Builder(
@@ -77,8 +69,6 @@ class AuthManager(context: Context) {
     }
 
     fun freshAccessToken(): String {
-        if (isDevelopmentAuthorized) return "development-token"
-
         val token = AtomicReference<String?>()
         val failure = AtomicReference<AuthorizationException?>()
         val latch = CountDownLatch(1)
@@ -91,7 +81,13 @@ class AuthManager(context: Context) {
         }
 
         if (!latch.await(20, TimeUnit.SECONDS)) error("Authentication timed out.")
-        failure.get()?.let { throw it }
+        failure.get()?.let { exception ->
+            val detail = exception.errorDescription?.takeIf { it.isNotBlank() }
+                ?: exception.error?.takeIf { it.isNotBlank() }
+                ?: exception.cause?.message?.takeIf { it.isNotBlank() }
+                ?: "인증 오류 (type=${exception.type}, code=${exception.code})"
+            throw IllegalStateException("로그인 인증 갱신 실패: $detail. 로그아웃 후 다시 로그인해 주세요.", exception)
+        }
         return token.get() ?: error("Login is required.")
     }
 

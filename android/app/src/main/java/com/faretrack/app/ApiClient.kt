@@ -8,42 +8,30 @@ import java.net.URL
 
 class ApiClient(context: Context, private val auth: AuthManager) {
     private val preferences = context.applicationContext.getSharedPreferences("faretrack_settings", Context.MODE_PRIVATE)
-    private val developmentApi = DevelopmentApi(context.applicationContext)
 
     var baseUrl: String
         get() = preferences.getString("api_url_v2", BuildConfig.DEFAULT_API_BASE_URL) ?: BuildConfig.DEFAULT_API_BASE_URL
         set(value) { preferences.edit().putString("api_url_v2", value.trim().trimEnd('/')).apply() }
 
-    fun search(query: JSONObject) = if (useDevelopmentApi) developmentApi.search(query)
-        else requestObject("POST", "/api/flights/search", query)
+    fun search(query: JSONObject) = requestObject("POST", "/api/flights/search", query)
 
-    fun bookingOptions(bookingToken: String, departureToken: String, selectedFlights: JSONObject?, query: JSONObject) = if (useDevelopmentApi) developmentApi.bookingOptions(bookingToken.ifBlank { departureToken })
-        else requestObject("POST", "/api/flights/booking-options", JSONObject().put("bookingToken", bookingToken).put("departureToken", departureToken).put("selectedFlights", selectedFlights).put("query", query))
+    fun bookingOptions(bookingToken: String, departureToken: String, selectedFlights: JSONObject?, query: JSONObject) = requestObject("POST", "/api/flights/booking-options", JSONObject().put("bookingToken", bookingToken).put("departureToken", departureToken).put("selectedFlights", selectedFlights).put("query", query))
 
-    fun returnOptions(departureToken: String, query: JSONObject) = if (useDevelopmentApi) developmentApi.returnOptions()
-        else requestObject("POST", "/api/flights/return-options", JSONObject().put("departureToken", departureToken).put("query", query))
+    fun returnOptions(departureToken: String, query: JSONObject) = requestObject("POST", "/api/flights/return-options", JSONObject().put("departureToken", departureToken).put("query", query))
 
-    fun registerDevice(token: String) = if (useDevelopmentApi) JSONObject().put("registered", true)
-        else requestObject("POST", "/api/devices", JSONObject().put("token", token).put("platform", "ANDROID"))
+    fun registerDevice(token: String) = requestObject("POST", "/api/devices", JSONObject().put("token", token).put("platform", "ANDROID"))
 
-    fun createAlert(payload: JSONObject) = if (useDevelopmentApi) developmentApi.createAlert(payload)
-        else requestObject("POST", "/api/alerts", payload)
+    fun createAlert(payload: JSONObject) = requestObject("POST", "/api/alerts", payload)
 
-    fun getAlerts() = if (useDevelopmentApi) developmentApi.getAlerts()
-        else JSONArray(execute("GET", "/api/alerts"))
+    fun getAlerts() = JSONArray(execute("GET", "/api/alerts"))
 
-    fun updateAlert(id: String, payload: JSONObject) = if (useDevelopmentApi) developmentApi.updateAlert(id, payload)
-        else requestObject("PATCH", "/api/alerts/$id", payload)
+    fun updateAlert(id: String, payload: JSONObject) = requestObject("PATCH", "/api/alerts/$id", payload)
 
     fun deleteAlert(id: String) {
-        if (useDevelopmentApi) developmentApi.deleteAlert(id) else execute("DELETE", "/api/alerts/$id")
+        execute("DELETE", "/api/alerts/$id")
     }
 
-    fun runPriceCheck() = if (useDevelopmentApi) developmentApi.runPriceCheck()
-        else requestObject("POST", "/internal/price-check", JSONObject())
-
-    private val useDevelopmentApi: Boolean
-        get() = BuildConfig.DEBUG && auth.isDevelopmentAuthorized
+    fun runPriceCheck() = requestObject("POST", "/internal/price-check", JSONObject())
 
     private fun requestObject(method: String, path: String, payload: JSONObject? = null) =
         JSONObject(execute(method, path, payload))

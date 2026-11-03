@@ -6,6 +6,14 @@ const { WatchService } = require('../src/services/watchService');
 
 const query = { origin: 'ICN', destination: 'NRT', departureDate: '2026-10-04', returnDate: '2026-10-08', tripType: 'ROUND', passengers: 1 };
 
+test('preserves disabled percentage alerts on creation and retrieval', async () => {
+  const service = new WatchService({ watchRepository: new WatchRepository(), priceHistoryRepository: new PriceHistoryRepository() });
+  const { alert } = await service.create(query, { userId: 'user-1', targetPrice: 150000, dropRatePercent: 0 });
+  assert.equal(alert.dropRatePercent, 0);
+  const [saved] = await service.list('user-1');
+  assert.equal(saved.dropRatePercent, 0);
+});
+
 test('추적 등록 가격을 첫 가격 이력으로 저장한다', async () => {
   const watches = new WatchRepository();
   const history = new PriceHistoryRepository();

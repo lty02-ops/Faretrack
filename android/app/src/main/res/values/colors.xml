@@ -1,1 +1,7 @@
-<resources><color name="ink">#17212B</color><color name="teal">#087F76</color><color name="paper">#F5F6F4</color><color name="muted">#66717D</color><color name="white">#FFFFFF</color></resources>
+<resources>
+    <color name="ink">#1E2636</color>
+    <color name="teal">#196CFA</color>
+    <color name="paper">#F5F8FE</color>
+    <color name="muted">#748196</color>
+    <color name="white">#FFFFFF</color>
+</resources>
