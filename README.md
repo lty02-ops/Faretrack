@@ -94,34 +94,59 @@ Notification Lambda는 DynamoDB에서 사용자의 FCM 기기 토큰을 조회�
 
 SerpAPI 키와 Firebase 자격 증명은 Secrets Manager에 저장하고, 각 Lambda에는 작업에 필요한 IAM 권한만 부여했습니다.
 
-## 설치 및 실행 방법
+## 배포 및 실행 방법
 
-### Backend
+### 1) Repository Clone
 
 ```bash
-npm ci
-npm test
-npm start
+git clone https://github.com/lty02-ops/Faretrack.git
+cd Faretrack
 ```
 
-로컬 서버의 기본 주소는 `http://localhost:3000`입니다. Android Emulator에서는 호스트 PC의 로컬 서버에 `http://10.0.2.2:3000`으로 접근합니다.
+### 2) 환경 변수 설정
 
-### Android
+프로젝트 루트의 `.env.example`을 `.env`로 복사하고 Google·Kakao 로그인 정보, SerpAPI 키, Firebase 서비스 계정 파일 경로를 입력합니다.
 
-배포된 API와 Cognito 값은 `android/faretrack.local.properties`에 설정합니다. 자동 배포 스크립트는 Terraform output을 읽어 이 파일을 갱신합니다.
+```bash
+cp .env.example .env
+```
+
+```dotenv
+TF_VAR_google_client_id=
+TF_VAR_google_client_secret=
+TF_VAR_kakao_client_id=
+TF_VAR_kakao_client_secret=
+SERPAPI_API_KEY=
+FIREBASE_SERVICE_ACCOUNT_FILE=
+```
+
+### 3) AWS 배포
+
+AWS 자격 증명과 Terraform S3 backend를 설정한 뒤 Bash 환경에서 실행합니다. 최초 설정은 [배포 가이드](docs/deployment.md)를 참고합니다.
+
+```bash
+bash infra/scripts/deploy-dev.sh
+```
+
+배포 후 `social_provider_callback_url` 출력값을 Google·Kakao 개발자 콘솔의 Callback URL로 등록합니다.
+
+### 4) Android 앱 빌드 및 설치
+
+배포 스크립트가 `android/faretrack.local.properties`에 API와 Cognito 설정을 반영합니다. PowerShell에서 다음 명령을 실행합니다.
 
 ```powershell
-cd D:\Lowest_airfare\android
+cd android
 .\gradlew.bat assembleDebug
+adb install -r app/build/outputs/apk/debug/app-debug.apk
 ```
 
-APK는 `android/app/build/outputs/apk/debug/app-debug.apk`에 생성됩니다.
+앱을 실행하고 Google 또는 Kakao로 로그인합니다.
 
-## AWS 배포
+### 5) 변경 사항 배포
 
-### GitHub Actions 배포
+코드 변경 후 `main`에 push하고 GitHub Actions에서 **Deploy dev → Run workflow → main**을 선택합니다.
 
-GitHub Actions에서 개발 환경 배포 workflow를 수동으로 실행할 수 있습니다. GitHub Actions는 Terraform을 이용한 AWS 리소스 배포를 담당하며, SerpAPI 키와 Firebase 자격 증명 등록은 로컬 deploy-dev.sh를 통해 별도로 진행합니다.
+API 또는 Cognito 설정이 바뀌면 Android 설정을 갱신하고 APK를 다시 빌드합니다.
 
 ## Trouble Shooting
 
