@@ -1,0 +1,59 @@
+// Register as a separate, manually triggered Pipeline from SCM fixed to main.
+pipeline {
+    agent { label 'faretrack-deploy' }
+    options {
+        skipDefaultCheckout(true)
+        disableConcurrentBuilds()
+        buildDiscarder(logRotator(numToKeepStr: '20'))
+        timeout(time: 60, unit: 'MINUTES')
+    }
+    environment {
+        TF_IN_AUTOMATION = 'true'
+        AWS_REGION = 'ap-northeast-2'
+        AWS_DEFAULT_REGION = 'ap-northeast-2'
+        AWS_PAGER = ''
+    }
+    stages {
+        stage('Checkout main') {
+            steps {
+                deleteDir()
+                checkout scm
+                sh '''
+                    test "$(git rev-parse HEAD)" = "$(git rev-parse refs/remotes/origin/main)"
+                '''
+            }
+        }
+        stage('Test and build') {
+            steps {
+                sh 'npm ci'
+                sh 'npm test'
+                sh 'bash backend/scripts/buildLambda.sh'
+                sh 'terraform fmt -check -recursive infra'
+            }
+        }
+        stage('Deploy dev') {
+            steps {
+                // AWS credentials come from the dedicated agent's IAM role.
+                sh 'aws sts get-caller-identity'
+                withCredentials([
+                    string(credentialsId: 'faretrack-google-client-id', variable: 'TF_VAR_google_client_id'),
+                    string(credentialsId: 'faretrack-google-client-secret', variable: 'TF_VAR_google_client_secret'),
+                    string(credentialsId: 'faretrack-kakao-client-id', variable: 'TF_VAR_kakao_client_id'),
+                    string(credentialsId: 'faretrack-kakao-client-secret', variable: 'TF_VAR_kakao_client_secret'),
+                    string(credentialsId: 'faretrack-ses-from-email', variable: 'TF_VAR_ses_from_email'),
+                    string(credentialsId: 'faretrack-monitoring-alert-email', variable: 'TF_VAR_monitoring_alert_email')
+                ]) {
+                    dir('infra/terraform') {
+                        sh 'terraform init -input=false -reconfigure -backend-config=environments/dev.backend.hcl'
+                        sh 'terraform validate'
+                        sh 'terraform plan -input=false -lock-timeout=5m -var-file=environments/dev.tfvars -out=dev.tfplan'
+                        sh 'terraform apply -input=false -lock-timeout=5m dev.tfplan'
+                    }
+                }
+            }
+        }
+    }
+    post {
+        always { deleteDir() }
+    }
+}

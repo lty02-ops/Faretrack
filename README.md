@@ -4,7 +4,6 @@
 
 AWS Lambda 기반으로 서버리스 배포 환경을 구축했습니다.
 
-[![CI](https://github.com/lty02-ops/Faretrack/actions/workflows/ci.yml/badge.svg)](https://github.com/lty02-ops/Faretrack/actions/workflows/ci.yml)
 
 ## 주요 기능
 
@@ -33,7 +32,7 @@ AWS Lambda 기반으로 서버리스 배포 환경을 구축했습니다.
 ![AWS Lambda](https://img.shields.io/badge/AWS_Lambda-FF9900?style=flat-square&logo=awslambda&logoColor=white)
 ![DynamoDB](https://img.shields.io/badge/DynamoDB-4053D6?style=flat-square&logo=amazondynamodb&logoColor=white)
 ![Terraform](https://img.shields.io/badge/Terraform-844FBA?style=flat-square&logo=terraform&logoColor=white)
-![GitHub Actions](https://img.shields.io/badge/GitHub_Actions-2088FF?style=flat-square&logo=githubactions&logoColor=white)
+![Jenkins](https://img.shields.io/badge/Jenkins-D24939?style=flat-square&logo=jenkins&logoColor=white)
 
 ## 아키텍처
 
@@ -49,11 +48,10 @@ Android 앱에서 API Gateway로 요청을 전달하면 API Lambda가 항공편 
 
 ### CI/CD
 
-![Faretrack CI/CD Pipeline](image/architecture_CICD.png)
 
-**CI** - `main` 브랜치에 코드가 push되거나 Pull Request가 생성되면 Node.js 테스트와 Lambda 배포 패키지 빌드를 실행합니다. Terraform 코드의 형식 검사와 구성 검증을 진행해 배포 전 오류를 확인합니다.
+**CI** - Jenkins runs Node.js tests, builds the Lambda package, and checks Terraform formatting and validation on main pushes and pull requests (`Jenkinsfile`).
 
-**CD** - 배포는 GitHub Actions에서 수동으로 실행하고 GitHub OIDC를 통해 임시 자격 증명을 발급받습니다. 이후 테스트와 Lambda 패키지 빌드를 진행하고 Terraform의 `plan`과 `apply`로 Lambda 코드 및 AWS 리소스의 변경 사항을 반영합니다. Terraform state는 S3에 저장하고 배포 workflow가 동시 실행되지 않도록 구성했습니다.
+**CD** - Run the dedicated Jenkins job manually to deploy main (`Jenkinsfile.deploy`). It uses the deployment agent IAM role and Terraform plan/apply with S3 state locking. See [Jenkins setup](docs/deployment.md).
 
 ### 소셜 로그인 및 API 요청 흐름
 
@@ -144,7 +142,7 @@ adb install -r app/build/outputs/apk/debug/app-debug.apk
 
 ### 5) 변경 사항 배포
 
-코드 변경 후 `main`에 push하고 GitHub Actions에서 **Deploy dev → Run workflow → main**을 선택합니다.
+Push changes to `main`, then select **faretrack-deploy-dev > Build Now** in Jenkins.
 
 API 또는 Cognito 설정이 바뀌면 Android 설정을 갱신하고 APK를 다시 빌드합니다.
 
