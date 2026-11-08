@@ -51,7 +51,7 @@ Android 앱에서 API Gateway로 요청을 전달하면 API Lambda가 항공편 
 
 **CI** - Jenkins runs Node.js tests, builds the Lambda package, and checks Terraform formatting and validation on main pushes and pull requests (`Jenkinsfile`).
 
-**CD** - Run the dedicated Jenkins job manually to deploy main (`Jenkinsfile.deploy`). It uses the deployment agent IAM role and Terraform plan/apply with S3 state locking. See [Jenkins setup](docs/deployment.md).
+**CD** - Jenkins의 수동 배포 작업(`Jenkinsfile.deploy`)이 Terraform 배포, Secrets Manager 등록, Android 설정 갱신과 debug APK 빌드를 수행합니다. APK와 공개 연결 정보는 빌드 아티팩트로 다운로드합니다. [Jenkins 설정 가이드](docs/deployment.md)를 참고합니다.
 
 ### 소셜 로그인 및 API 요청 흐름
 

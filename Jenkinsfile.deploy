@@ -23,6 +23,25 @@ pipeline {
                 '''
             }
         }
+        stage('Check deployment prerequisites') {
+            steps {
+                withCredentials([
+                    string(credentialsId: 'faretrack-serpapi-api-key', variable: 'SERPAPI_API_KEY'),
+                    file(credentialsId: 'faretrack-firebase-service-account', variable: 'FIREBASE_SERVICE_ACCOUNT_FILE'),
+                    file(credentialsId: 'faretrack-android-google-services', variable: 'GOOGLE_SERVICES_FILE')
+                ]) {
+                    sh 'node infra/scripts/validate-deployment-inputs.js'
+                }
+                sh '''
+                    command -v aws
+                    command -v terraform
+                    command -v javac
+                    test -n "$ANDROID_HOME"
+                    test -f "$ANDROID_HOME/platforms/android-36/android.jar"
+                    test -x "$ANDROID_HOME/build-tools/34.0.0/aapt2"
+                '''
+            }
+        }
         stage('Test and build') {
             steps {
                 sh 'npm ci'
@@ -33,7 +52,7 @@ pipeline {
         }
         stage('Deploy dev') {
             steps {
-                // AWS credentials come from the dedicated agent's IAM role.
+                // AWS credentials come from the deployment agent's credential chain.
                 sh 'aws sts get-caller-identity'
                 withCredentials([
                     string(credentialsId: 'faretrack-google-client-id', variable: 'TF_VAR_google_client_id'),
@@ -50,6 +69,39 @@ pipeline {
                         sh 'terraform apply -input=false -lock-timeout=5m dev.tfplan'
                     }
                 }
+            }
+        }
+        stage('Register application secrets') {
+            steps {
+                withCredentials([
+                    string(credentialsId: 'faretrack-serpapi-api-key', variable: 'SERPAPI_API_KEY'),
+                    file(credentialsId: 'faretrack-firebase-service-account', variable: 'FIREBASE_SERVICE_ACCOUNT_FILE')
+                ]) {
+                    sh 'bash infra/scripts/register-app-secrets.sh'
+                }
+            }
+        }
+        stage('Configure Android') {
+            steps {
+                sh 'bash infra/scripts/configure-android.sh'
+                archiveArtifacts artifacts: 'dist/deployment-info.json', fingerprint: true
+            }
+        }
+        stage('Build Android APK') {
+            steps {
+                withCredentials([
+                    file(credentialsId: 'faretrack-android-google-services', variable: 'GOOGLE_SERVICES_FILE')
+                ]) {
+                    sh '''
+                        set +x
+                        android_config="$PWD/android/app/google-services.json"
+                        cp "$GOOGLE_SERVICES_FILE" "$android_config"
+                        trap 'rm -f "$android_config"' EXIT
+                        cd android
+                        sh ./gradlew --no-daemon assembleDebug
+                    '''
+                }
+                archiveArtifacts artifacts: 'android/app/build/outputs/apk/debug/app-debug.apk', fingerprint: true
             }
         }
     }
