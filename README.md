@@ -48,10 +48,11 @@ Android 앱에서 API Gateway로 요청을 전달하면 API Lambda가 항공편 
 
 ### CI/CD
 
+![Faretrack Jenkins CI/CD Pipeline](image/Faretrack_cicd.png)
 
-**CI** - Jenkins runs Node.js tests, builds the Lambda package, and checks Terraform formatting and validation on main pushes and pull requests (`Jenkinsfile`).
+**CI** - `main`에 코드를 push하거나 PR을 올리면 Jenkins가 변경 사항을 확인해 테스트와 Lambda 패키지 빌드를 실행합니다. Terraform 코드의 형식과 구성을 검사하고, 결과를 GitHub 커밋과 PR에 표시합니다.
 
-**CD** - Jenkins의 수동 배포 작업(`Jenkinsfile.deploy`)이 Terraform 배포, Secrets Manager 등록, Android 설정 갱신과 debug APK 빌드를 수행합니다. APK와 공개 연결 정보는 빌드 아티팩트로 다운로드합니다. [Jenkins 설정 가이드](docs/deployment.md)를 참고합니다.
+**CD** - Jenkins에서 배포 작업을 수동으로 실행하면 Terraform으로 AWS 리소스와 Lambda 코드를 배포합니다. 이어서 SerpAPI 키와 Firebase 자격 증명을 Secrets Manager에 등록하고, 배포된 API와 Cognito 설정을 반영해 Android APK를 빌드합니다. Terraform state는 S3에 저장하며, 배포가 겹치지 않도록 설정했습니다.
 
 ### 소셜 로그인 및 API 요청 흐름
 
@@ -70,7 +71,7 @@ Android 앱에서 API Gateway로 요청을 전달하면 API Lambda가 항공편 
 
 EventBridge가 3시간 간격으로 Scheduler Lambda를 실행하면 활성화된 가격 추적 조건을 Price Check SQS에 등록합니다. Price Worker는 SQS의 메시지를 받아 SerpAPI에서 현재 가격을 조회하고 조회 결과와 가격 이력을 DynamoDB에 저장합니다.
 
-외부 API 호출 횟수와 비용을 고려해 가격 확인 주기는 3시간으로 설정했습니다.
+외부 API 호출 횟수와 비용을 고려해 가격 확인 주기는 3시간으로 설정했습니다. 개발 환경은 비용 절감을 위해 `infra/terraform/environments/dev.tfvars`의 `price_tracking_enabled = false`로 예약 실행을 꺼두었으며, 자동 가격 추적이 필요할 때 활성화해 배포합니다.
 
 **Evaluate Alert Conditions**
 
@@ -101,36 +102,40 @@ git clone https://github.com/lty02-ops/Faretrack.git
 cd Faretrack
 ```
 
-### 2) 환경 변수 설정
+### 2) Jenkins와 배포 환경 준비
 
-프로젝트 루트의 `.env.example`을 `.env`로 복사하고 Google·Kakao 로그인 정보, SerpAPI 키, Firebase 서비스 계정 파일 경로를 입력합니다.
+Jenkins에 CI용 `faretrack-ci` 노드와 배포용 `faretrack-deploy` 노드를 연결합니다. 배포 에이전트에는 AWS 인증, Node.js 22/npm, Terraform 1.15.8, Java 21 JDK와 Linux Android SDK를 준비합니다. 에이전트 프로세스가 실행 중이어야 작업이 진행됩니다.
 
-```bash
-cp .env.example .env
-```
+GitHub 접근 자격 증명을 CI와 배포 작업에 연결하고, 배포용 OAuth 값·이메일·SerpAPI 키·Firebase 파일은 `faretrack-deploy` 폴더의 Credentials에 등록합니다. 필요한 ID와 파일 종류는 [배포 가이드](docs/deployment.md)를 참고합니다.
 
-```dotenv
-TF_VAR_google_client_id=
-TF_VAR_google_client_secret=
-TF_VAR_kakao_client_id=
-TF_VAR_kakao_client_secret=
-SERPAPI_API_KEY=
-FIREBASE_SERVICE_ACCOUNT_FILE=
-```
+Jenkins는 `.env`를 읽지 않고 Credentials를 주입합니다. `.env`는 로컬 `infra/scripts/deploy-dev.sh`를 직접 실행할 때 사용하는 별도 설정입니다.
 
 ### 3) AWS 배포
 
-AWS 자격 증명과 Terraform S3 backend를 설정한 뒤 Bash 환경에서 실행합니다. 최초 설정은 [배포 가이드](docs/deployment.md)를 참고합니다.
+최초 배포 전 Terraform state용 S3 버킷을 준비합니다. AWS 인증이 설정된 터미널에서 다음을 실행합니다. bootstrap state 파일은 로컬에 보관하고 Git에는 올리지 않습니다.
 
 ```bash
-bash infra/scripts/deploy-dev.sh
+terraform -chdir=infra/bootstrap init
+terraform -chdir=infra/bootstrap apply
 ```
 
-배포 후 `social_provider_callback_url` 출력값을 Google·Kakao 개발자 콘솔의 Callback URL로 등록합니다.
+Jenkins에서 **faretrack-deploy → faretrack-deploy-dev → Build Now**를 실행합니다. 이 작업은 실제 AWS 리소스를 생성하거나 변경하고, 앱 자격 증명 등록과 APK 빌드까지 진행합니다.
+
+배포 후 Google·Kakao 개발자 콘솔에 아티팩트 `deployment-info.json`의 `socialProviderCallbackUrl`을 등록합니다. 동일한 URL이 이미 등록되어 있으면 유지합니다. SES 이메일 인증과 SNS 구독 확인 메일의 링크도 직접 확인합니다.
 
 ### 4) Android 앱 빌드 및 설치
 
-배포 스크립트가 `android/faretrack.local.properties`에 API와 Cognito 설정을 반영합니다. PowerShell에서 다음 명령을 실행합니다.
+성공한 Jenkins 빌드의 **Artifacts → app-debug.apk**를 다운로드해 기기에 설치할 수 있습니다.
+
+Android Studio에서 직접 실행하려면 `D:\Lowest_airfare\android`처럼 로컬 저장소의 `android` 폴더를 엽니다. Firebase 콘솔에서 받은 `google-services.json`을 `android/app/`에 두고, Jenkins의 `deployment-info.json` 값을 로컬 `android/faretrack.local.properties`에 반영합니다. Jenkins에서 생성한 설정은 PC의 로컬 저장소에 자동 복사되지 않습니다.
+
+```properties
+faretrack.apiBaseUrl=<apiBaseUrl 값>
+faretrack.cognitoClientId=<cognitoClientId 값>
+faretrack.cognitoDomain=<cognitoDomain 값>
+```
+
+Android Studio에서 Run을 누르거나 PowerShell에서 다음을 실행합니다.
 
 ```powershell
 cd android
@@ -142,9 +147,9 @@ adb install -r app/build/outputs/apk/debug/app-debug.apk
 
 ### 5) 변경 사항 배포
 
-Push changes to `main`, then select **faretrack-deploy-dev > Build Now** in Jenkins.
+코드 변경을 push하면 Jenkins가 스캔 주기에 따라 CI를 실행합니다. CI 결과를 확인한 뒤 **faretrack-deploy → faretrack-deploy-dev → Build Now**를 눌러 `main`을 배포합니다. CI 성공만으로 AWS 배포가 실행되지는 않습니다.
 
-API 또는 Cognito 설정이 바뀌면 Android 설정을 갱신하고 APK를 다시 빌드합니다.
+Jenkins가 최신 Android 설정과 APK를 다시 생성합니다. Android Studio로 실행한다면 최신 `deployment-info.json`을 기준으로 로컬 설정도 갱신합니다.
 
 ## Trouble Shooting
 
@@ -154,7 +159,7 @@ API 또는 Cognito 설정이 바뀌면 Android 설정을 갱신하고 APK를 다
 |---|---|
 | &nbsp;문&#8288;제&nbsp; | AWS 인프라를 다시 배포한 뒤 기존 APK에서 로그인 화면이 열리지 않았습니다. |
 | &nbsp;원&#8288;인&nbsp; | 변경된 Cognito 도메인과 app client ID가 APK에 반영되지 않았습니다. |
-| &nbsp;해&#8288;결&nbsp; | 배포 스크립트가 Terraform output을 `android/faretrack.local.properties`에 자동 반영하도록 수정하고 APK를 다시 빌드했습니다. |
+| &nbsp;해&#8288;결&nbsp; | Jenkins가 Terraform output으로 연결 설정과 APK를 다시 생성합니다. Android Studio로 실행할 때는 최신 `deployment-info.json`을 로컬 설정에 반영하고 다시 빌드합니다. |
 
 ### 푸시 알림 미수신
 
@@ -162,7 +167,7 @@ API 또는 Cognito 설정이 바뀌면 Android 설정을 갱신하고 APK를 다
 |---|---|
 | &nbsp;문&#8288;제&nbsp; | 가격 알림 조건을 충족했지만 Android 앱에 푸시 알림이 도착하지 않았습니다. |
 | &nbsp;원&#8288;인&nbsp; | Secrets Manager에 Firebase 자격 증명의 실제 값이 등록되지 않아 Notification Lambda가 FCM을 호출하지 못했습니다. |
-| &nbsp;해&#8288;결&nbsp; | `deploy-dev.sh`에서 Firebase 자격 증명을 Secrets Manager에 등록하도록 배포 과정을 수정했습니다. |
+| &nbsp;해&#8288;결&nbsp; | Jenkins 배포의 `Register application secrets` 단계에서 Firebase 서비스 계정과 SerpAPI 키를 Secrets Manager에 등록하도록 자동화했습니다. |
 
 ### 가격 알림 중복 전송
 

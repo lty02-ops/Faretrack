@@ -9,9 +9,3 @@ variable "region" {
   type        = string
   default     = "ap-northeast-2"
 }
-
-variable "github_repository" {
-  description = "GitHub repository in owner/name format"
-  type        = string
-  default     = "lty02-ops/Faretrack"
-}
