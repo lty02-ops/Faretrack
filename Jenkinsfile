@@ -20,6 +20,7 @@ pipeline {
             steps {
                 sh 'npm ci'
                 sh 'npm test'
+                sh 'node --test infra/scripts/jenkins-client.test.js'
             }
         }
         stage('Build Lambda') {

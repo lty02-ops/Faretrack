@@ -1,4 +1,3 @@
-// Register as a separate, manually triggered Pipeline from SCM fixed to main.
 pipeline {
     agent { label 'faretrack-deploy' }
     options {
@@ -52,7 +51,6 @@ pipeline {
         }
         stage('Deploy dev') {
             steps {
-                // AWS credentials come from the deployment agent's credential chain.
                 sh 'aws sts get-caller-identity'
                 withCredentials([
                     string(credentialsId: 'faretrack-google-client-id', variable: 'TF_VAR_google_client_id'),

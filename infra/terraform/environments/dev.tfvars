@@ -2,6 +2,8 @@ project_name = "faretrack"
 environment  = "dev"
 region       = "ap-northeast-2"
 
+grafana_enabled = true
+
 price_check_schedule   = "rate(3 hours)"
 price_tracking_enabled = false
 

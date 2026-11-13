@@ -14,7 +14,6 @@ android/faretrack.local.properties
 android/**/build/
 .android-gradle-cache/
 
-# Terraform local state and generated plans
 **/.terraform/*
 *.tfstate
 *.tfstate.*
@@ -29,7 +28,6 @@ override.tf.json
 crash.log
 crash.*.log
 
-# Android machine-local and signing credentials
 **/google-services.json
 *.jks
 *.keystore

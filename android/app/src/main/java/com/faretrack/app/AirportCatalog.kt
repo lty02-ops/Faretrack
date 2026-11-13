@@ -2,7 +2,6 @@ package com.faretrack.app
 
 object AirportCatalog {
     val airports = listOf(
-        // 대한민국
         "서울 인천국제공항 / Seoul Incheon (ICN)", "서울 김포국제공항 / Seoul Gimpo (GMP)",
         "부산 김해국제공항 / Busan Gimhae (PUS)", "제주국제공항 / Jeju (CJU)",
         "대구국제공항 / Daegu (TAE)", "청주국제공항 / Cheongju (CJJ)",
@@ -11,7 +10,6 @@ object AirportCatalog {
         "군산공항 / Gunsan (KUV)", "원주공항 / Wonju (WJU)", "사천공항 / Sacheon (HIN)",
         "포항경주공항 / Pohang Gyeongju (KPO)",
 
-        // 일본
         "도쿄 나리타국제공항 / Tokyo Narita (NRT)", "도쿄 하네다공항 / Tokyo Haneda (HND)",
         "오사카 간사이국제공항 / Osaka Kansai (KIX)", "오사카 이타미공항 / Osaka Itami (ITM)",
         "후쿠오카공항 / Fukuoka (FUK)", "삿포로 신치토세공항 / Sapporo New Chitose (CTS)",
@@ -21,7 +19,6 @@ object AirportCatalog {
         "나가사키공항 / Nagasaki (NGS)", "마쓰야마공항 / Matsuyama (MYJ)",
         "다카마쓰공항 / Takamatsu (TAK)", "센다이공항 / Sendai (SDJ)",
 
-        // 중국·홍콩·대만·몽골
         "베이징 수도국제공항 / Beijing Capital (PEK)", "베이징 다싱국제공항 / Beijing Daxing (PKX)",
         "상하이 푸둥국제공항 / Shanghai Pudong (PVG)", "상하이 훙차오국제공항 / Shanghai Hongqiao (SHA)",
         "칭다오 자오둥국제공항 / Qingdao (TAO)", "광저우 바이윈국제공항 / Guangzhou (CAN)",
@@ -33,7 +30,6 @@ object AirportCatalog {
         "타이베이 쑹산공항 / Taipei Songshan (TSA)", "가오슝국제공항 / Kaohsiung (KHH)",
         "울란바토르 칭기즈칸국제공항 / Ulaanbaatar (UBN)",
 
-        // 동남아시아·남아시아
         "방콕 수완나품공항 / Bangkok Suvarnabhumi (BKK)", "방콕 돈므앙공항 / Bangkok Don Mueang (DMK)",
         "싱가포르 창이공항 / Singapore Changi (SIN)", "하노이 노이바이공항 / Hanoi (HAN)",
         "호찌민 떤선녓공항 / Ho Chi Minh City (SGN)", "다낭국제공항 / Da Nang (DAD)",
@@ -47,7 +43,6 @@ object AirportCatalog {
         "프놈펜국제공항 / Phnom Penh (PNH)", "시엠레아프 앙코르국제공항 / Siem Reap (SAI)",
         "델리 인디라간디국제공항 / Delhi (DEL)", "뭄바이 차트라파티시바지국제공항 / Mumbai (BOM)",
 
-        // 미주·태평양
         "괌 안토니오 B. 원 팻 국제공항 / Guam (GUM)", "사이판국제공항 / Saipan (SPN)",
         "호놀룰루국제공항 / Honolulu (HNL)", "로스앤젤레스국제공항 / Los Angeles (LAX)",
         "샌프란시스코국제공항 / San Francisco (SFO)", "시애틀 터코마국제공항 / Seattle (SEA)",
@@ -57,7 +52,6 @@ object AirportCatalog {
         "보스턴 로건국제공항 / Boston (BOS)", "워싱턴 덜레스국제공항 / Washington Dulles (IAD)",
         "밴쿠버국제공항 / Vancouver (YVR)", "토론토 피어슨국제공항 / Toronto (YYZ)",
 
-        // 유럽·중동
         "런던 히스로공항 / London Heathrow (LHR)", "런던 개트윅공항 / London Gatwick (LGW)",
         "파리 샤를드골공항 / Paris Charles de Gaulle (CDG)", "파리 오를리공항 / Paris Orly (ORY)",
         "프랑크푸르트공항 / Frankfurt (FRA)", "뮌헨공항 / Munich (MUC)",
@@ -69,7 +63,6 @@ object AirportCatalog {
         "두바이국제공항 / Dubai (DXB)", "아부다비국제공항 / Abu Dhabi (AUH)",
         "도하 하마드국제공항 / Doha (DOH)",
 
-        // 대양주
         "시드니 킹스포드스미스공항 / Sydney (SYD)", "멜버른공항 / Melbourne (MEL)",
         "브리즈번공항 / Brisbane (BNE)", "퍼스공항 / Perth (PER)",
         "오클랜드국제공항 / Auckland (AKL)", "크라이스트처치국제공항 / Christchurch (CHC)"

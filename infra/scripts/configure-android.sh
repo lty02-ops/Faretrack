@@ -2,7 +2,6 @@
 set -euo pipefail
 ROOT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")/../.." && pwd)"
 mkdir -p "$ROOT_DIR/dist"
-# Export only public application settings, never the full Terraform state.
 api_base_url="$(terraform -chdir="$ROOT_DIR/infra/terraform" output -raw api_base_url)"
 cognito_client_id="$(terraform -chdir="$ROOT_DIR/infra/terraform" output -raw cognito_android_client_id)"
 cognito_domain="$(terraform -chdir="$ROOT_DIR/infra/terraform" output -raw cognito_hosted_ui_domain)"

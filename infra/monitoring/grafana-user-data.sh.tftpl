@@ -1,0 +1,72 @@
+#!/bin/bash
+set -euo pipefail
+dnf install -y docker openssl
+systemctl enable --now docker amazon-ssm-agent
+volume_serial=$(echo '${volume_id}' | tr -d '-')
+data_device=""
+for attempt in $(seq 1 120); do
+  data_device=$(lsblk -dn -o PATH,SERIAL | awk -v serial="$volume_serial" '$2 == serial {print $1; exit}')
+  if [ -n "$data_device" ] && [ -b "$data_device" ]; then break; fi
+  sleep 5
+done
+test -n "$data_device" && test -b "$data_device"
+if ! blkid "$data_device"; then mkfs.ext4 "$data_device"; fi
+install -d -m 0755 /opt/faretrack-grafana
+data_uuid=$(blkid -s UUID -o value "$data_device")
+echo "UUID=$data_uuid /opt/faretrack-grafana ext4 defaults 0 2" >> /etc/fstab
+mount /opt/faretrack-grafana
+install -d -m 0755 /opt/faretrack-grafana/{data,provisioning/datasources,provisioning/dashboards,dashboards}
+install -d -m 0700 /opt/faretrack-grafana/secrets
+if [ ! -s /opt/faretrack-grafana/secrets/admin-password ]; then
+  openssl rand -hex 24 > /opt/faretrack-grafana/secrets/admin-password
+fi
+chown -R 472:472 /opt/faretrack-grafana/data /opt/faretrack-grafana/secrets
+chmod 0400 /opt/faretrack-grafana/secrets/admin-password
+
+cat > /opt/faretrack-grafana/provisioning/datasources/cloudwatch.yaml <<'YAML'
+apiVersion: 1
+datasources:
+  - name: Faretrack CloudWatch
+    uid: faretrack-cloudwatch
+    type: cloudwatch
+    access: proxy
+    isDefault: true
+    editable: false
+    jsonData:
+      authType: default
+      defaultRegion: ${region}
+YAML
+cat > /opt/faretrack-grafana/provisioning/dashboards/default.yaml <<'YAML'
+apiVersion: 1
+providers:
+  - name: Faretrack
+    folder: Faretrack
+    type: file
+    disableDeletion: true
+    allowUiUpdates: false
+    options:
+      path: /etc/grafana/dashboards
+YAML
+echo '${dashboard_b64}' | base64 -d > /opt/faretrack-grafana/dashboards/faretrack.json
+
+cat > /etc/systemd/system/faretrack-grafana.service <<'UNIT'
+[Unit]
+Description=Faretrack Grafana
+After=docker.service network-online.target
+Requires=docker.service
+Wants=network-online.target
+RequiresMountsFor=/opt/faretrack-grafana
+
+[Service]
+Restart=always
+RestartSec=15
+TimeoutStartSec=0
+ExecStartPre=-/usr/bin/docker rm -f faretrack-grafana
+ExecStart=/usr/bin/docker run --rm --name faretrack-grafana --network host --log-opt max-size=10m --log-opt max-file=3 -e GF_SERVER_HTTP_ADDR=127.0.0.1 -e GF_SECURITY_ADMIN_PASSWORD__FILE=/run/secrets/admin-password -e GF_USERS_ALLOW_SIGN_UP=false -e GF_AUTH_ANONYMOUS_ENABLED=false -e AWS_REGION=${region} -v /opt/faretrack-grafana/data:/var/lib/grafana -v /opt/faretrack-grafana/secrets:/run/secrets:ro -v /opt/faretrack-grafana/provisioning:/etc/grafana/provisioning:ro -v /opt/faretrack-grafana/dashboards:/etc/grafana/dashboards:ro ${image}
+ExecStop=/usr/bin/docker stop faretrack-grafana
+
+[Install]
+WantedBy=multi-user.target
+UNIT
+systemctl daemon-reload
+systemctl enable --now faretrack-grafana
