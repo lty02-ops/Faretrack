@@ -119,9 +119,11 @@ cd Faretrack
 
 ### 2. 환경 설정
 ```bash
-cp .env.example .env
+cp -n .env.example .env
 ```
 `.env`에 OAuth 값, SerpAPI 키, Firebase 파일 경로와 Jenkins 접속 정보를 설정합니다. Jenkins 서버와 배포 에이전트가 실행 중인 환경에서 진행합니다.
+
+최초 실행 전 Jenkins에 `faretrack-deploy` 노드를 생성하고 WSL에서 에이전트를 실행해 연결합니다.
 
 ### 3. 배포
 ```bash
@@ -136,6 +138,16 @@ AWS와 Jenkins에 필요한 설정을 준비하고 Github의 `main`코드로 배
 
 
 이후에 Jenkins에서 `app-debug.apk`를 다운로드해서 설치한 후 소셜 로그인을 통해 로그인합니다.
+
+
+### 5. 리소스 삭제
+```bash
+terraform -chdir=infra/terraform destroy -var-file=environments/dev.tfvars
+```
+실행 중인 Jenkins 배포를 중단한 뒤 프로젝트 루트에서 실행합니다.
+<br>
+어플리케이션 데이터는 삭제되고 state 저장용 S3 버킷은 유지됩니다.
+
 
 ## Trouble Shooting
 
